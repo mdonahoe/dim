@@ -378,6 +378,27 @@ void editorSave(void) {
   editorSetStatusMessage("Can't save! I/O error: %s", strerror(errno));
 }
 
+/*** find ***/
+
+void editorFind() {
+    char *query = editorPrompt("Search: %s (ESC to cancel)");
+    if (query == NULL) return;
+
+    int i;
+    for (i = 0; i < E.numrows; i++) {
+        erow *row = &E.row[i];
+        char *match = strstr(row->render, query);
+        if (match) {
+            E.cy = i;
+            E.cx = match - row->render;
+            E.rowoff = E.numrows;  // hack to scroll to line!
+            break;
+        }
+    }
+    
+    free(query);
+}
+
 /*** append buffer ***/
 
 
@@ -651,6 +672,10 @@ void editorProcessKeypress(void) {
     case '\x1b':
       break;
 
+    case CTRL_KEY('f'):
+      editorFind();
+      break;
+
     default:
       editorInsertChar(c);
       break;
@@ -685,7 +710,7 @@ int main(int argc, char *argv[]) {
     editorOpen(argv[1]);
   }
 
-  editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit");
+  editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
 
   while (1) {
     editorRefreshScreen();
