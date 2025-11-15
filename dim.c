@@ -232,13 +232,15 @@ int editorUpdateSyntax(erow *row) {
   row->hl = realloc(row->hl, row->rsize);
   memset(row->hl, HL_NORMAL, row->rsize);
 
-  // if (E.syntax == NULL) return;
+  if (E.syntax == NULL)
+    return -1;
   int prev_sep = 1;
   int in_string = 0;
 
-  int i;
+  int i = 0;
   int hl_count = 0;
   while (i < row->rsize) {
+    hl_count++;
     char c = row->render[i];
     unsigned char prev_hl = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
 
@@ -527,7 +529,7 @@ void editorOpen(char *filename) {
   free(line);
   fclose(fp);
   E.dirty = 0;
-  // editorSelectSyntaxHighlight();
+  editorSelectSyntaxHighlight();
 }
 
 void editorSave(void) {
@@ -762,8 +764,7 @@ void editorDrawMessageBar(struct abuf *ab) {
   int msglen = strlen(E.statusmsg);
   if (msglen > E.screencols)
     msglen = E.screencols;
-  // if (msglen && time(NULL) - E.statusmsg_time < 5)
-  if (msglen)
+  if (msglen && time(NULL) - E.statusmsg_time < 5)
     abAppend(ab, E.statusmsg, msglen);
 }
 
