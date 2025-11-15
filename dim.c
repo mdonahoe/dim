@@ -20,7 +20,7 @@
 /*** defines ***/
 
 #define DIM_VERSION "0.0.1"
-#define DIM_TAB_STOP 8
+#define DIM_TAB_STOP 4
 #define DIM_QUIT_TIMES 3
 #define CTRL_KEY(k) ((k) & 0x1f)
 
@@ -212,15 +212,16 @@ int is_separator(int c) {
     return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];", c) != NULL;
 }
 
-void editorUpdateSyntax(erow *row) {
+int editorUpdateSyntax(erow *row) {
     row->hl = realloc(row->hl, row->rsize);
     memset(row->hl, HL_NORMAL, row->rsize);
 
-    if (E.syntax == NULL) return;
+    // if (E.syntax == NULL) return;
     int prev_sep = 1;
     int in_string = 0;
 
     int i;
+    int hl_count = 0;
     while (i < row->rsize) {
       char c = row->render[i];
       unsigned char prev_hl = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
@@ -228,6 +229,7 @@ void editorUpdateSyntax(erow *row) {
       if (E.syntax->flags & HL_HIGHLIGHT_STRINGS) {
           if (in_string) {
               row->hl[i] = HL_STRING;
+              hl_count++;
               if (c == '\\' && i + 1 < row->rsize) {
                   row->hl[i + 1] = HL_STRING;
                   i += 2;
@@ -240,17 +242,18 @@ void editorUpdateSyntax(erow *row) {
             } else {
                 if (c == '"' || c == '\'') {
                     in_string = c;
+                    hl_count++;
                     row->hl[i] = HL_STRING;
                     i++;
                     continue;
                 }
-
             }
       }
       if (E.syntax->flags & HL_HIGHLIGHT_NUMBERS) {
         if ((isdigit(c) && (prev_sep || prev_hl == HL_NUMBER))
             || (c == '.' && prev_hl == HL_NUMBER)) {
           row->hl[i] = HL_NUMBER;
+         hl_count++;
           i++;
           prev_sep = 0;
           continue;
@@ -260,6 +263,7 @@ void editorUpdateSyntax(erow *row) {
       prev_sep = is_separator(c);
       i++;
       }
+    return hl_count;
 }
 
 int editorSyntaxToColor(int hl) {
@@ -286,9 +290,14 @@ void editorSelectSyntaxHighlight() {
                 E.syntax = s;
 
                 int filerow;
+                int hl_counts = 0;
+                int lines = 0;
                 for (filerow = 0; filerow < E.numrows; filerow++) {
-                    editorUpdateSyntax(&E.row[filerow]);
+                    int hl_count = editorUpdateSyntax(&E.row[filerow]);
+                    hl_counts += hl_count;
+                    lines++;
                 }
+                editorSetStatusMessage("hl_counts = %d, lines = %d", hl_counts, lines);
                 return;
             }
             i++;
@@ -488,7 +497,7 @@ void editorOpen(char *filename) {
   free(line);
   fclose(fp);
   E.dirty = 0;
-  editorSelectSyntaxHighlight();
+  // editorSelectSyntaxHighlight();
 }
 
 void editorSave(void) {
@@ -666,7 +675,7 @@ void editorDrawRows(struct abuf *ab) {
       int current_color = -1;
       int j;
       for (j = 0; j < len; j++) {
-          if (hl[j] == HL_NORMAL) {
+          if (0 && hl[j] == HL_NORMAL) {
               if (current_color != -1) {
                   abAppend(ab, "\x1b[39m", 5);
                   current_color = -1;
@@ -717,7 +726,8 @@ void editorDrawMessageBar(struct abuf *ab) {
   abAppend(ab, "\x1b[K", 3);
   int msglen = strlen(E.statusmsg);
   if (msglen > E.screencols) msglen = E.screencols;
-  if (msglen && time(NULL) - E.statusmsg_time < 5)
+  // if (msglen && time(NULL) - E.statusmsg_time < 5)
+  if (msglen)
     abAppend(ab, E.statusmsg, msglen);
 }
 
@@ -931,7 +941,7 @@ int main(int argc, char *argv[]) {
     editorOpen(argv[1]);
   }
 
-  editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
+  // editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
 
   while (1) {
     editorRefreshScreen();
