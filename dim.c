@@ -240,7 +240,7 @@ void editorUpdateSyntax(erow *row) {
             } else {
                 if (c == '"' || c == '\'') {
                     in_string = c;
-                    row->hl[i] == HL_STRING;
+                    row->hl[i] = HL_STRING;
                     i++;
                     continue;
                 }
@@ -248,9 +248,8 @@ void editorUpdateSyntax(erow *row) {
             }
       }
       if (E.syntax->flags & HL_HIGHLIGHT_NUMBERS) {
-        if (isdigit(c) &&
-              (prev_sep || prev_hl == HL_NUMBER) ||
-              (c == '.' && prev_hl == HL_NUMBER)) {
+        if ((isdigit(c) && (prev_sep || prev_hl == HL_NUMBER))
+            || (c == '.' && prev_hl == HL_NUMBER)) {
           row->hl[i] = HL_NUMBER;
           i++;
           prev_sep = 0;
@@ -317,8 +316,7 @@ int editorRowRxToCx(erow *row, int rx) {
   for (cx = 0; cx < row->size; cx++) {
     if (row->chars[cx] == '\t')
       cur_rx += (DIM_TAB_STOP - 1) - (cur_rx % DIM_TAB_STOP);
-
-      if (cur_rx > rx) return cx;
+    if (cur_rx > rx) return cx;
   }
   return cx;
 }
@@ -490,6 +488,7 @@ void editorOpen(char *filename) {
   free(line);
   fclose(fp);
   E.dirty = 0;
+  editorSelectSyntaxHighlight();
 }
 
 void editorSave(void) {
@@ -542,7 +541,7 @@ void editorFindCallback(char *query, int key) {
   } else if (key == ARROW_RIGHT || key == ARROW_DOWN) {
     direction = 1;
   } else if (key == ARROW_LEFT || key == ARROW_UP) {
-    direction = 1;
+    direction = -1;
   } else {
     last_match = -1;
     direction = 1;
@@ -764,7 +763,7 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
     editorRefreshScreen();
     
     int c = editorReadKey();
-    if (c == DEL_KEY | c == CTRL_KEY('h') || c == BACKSPACE) {
+    if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
       if (buflen != 0) buf[--buflen] = '\0';
     } else if (c == '\x1b') {
       editorSetStatusMessage("");
