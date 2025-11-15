@@ -1,2 +1,2 @@
 dim: dim.c
-	$(CC) dim.c -o dim -Wall -Wextra -pedantic -std=c99
+	$(CC) dim.c -g -O0 -o dim -Wall -Wextra -pedantic -std=c99
