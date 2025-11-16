@@ -102,6 +102,18 @@ char *C_HL_keywords[] = {
     "float|",   "char|", "unsigned|", "signed|", "void|",   "#define",
     "#include", NULL};
 
+char *PY_HL_extensions[] = {".py", NULL};
+char *PY_HL_keywords[] = {
+    "and",      "as",       "assert",   "async",    "await",    "break",
+    "class",    "continue", "def",      "del",      "elif",     "else",
+    "except",   "finally",  "for",      "from",     "global",   "if",
+    "import",   "in",       "is",       "lambda",   "nonlocal", "not",
+    "or",       "pass",     "raise",    "return",   "try",      "while",
+    "with",     "yield",    "True",     "False",    "None",     "int|",
+    "float|",   "str|",     "bool|",    "list|",    "dict|",    "tuple|",
+    "set|",     "frozenset|", "bytes|", "bytearray|", "range|", "object|",
+    "type|",    "len|",     "print|",   "input|",   "open|",    NULL};
+
 struct editorSyntax HLDB[] = {
     {"c",             // lang
      C_HL_extensions, // filetypes
@@ -109,6 +121,13 @@ struct editorSyntax HLDB[] = {
      "//",            // line comment start sequence
      "/*",            // multi-line start
      "*/",            // multi-line end
+     HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS}, // flags
+    {"python",        // lang
+     PY_HL_extensions, // filetypes
+     PY_HL_keywords,   // keywords
+     "#",              // line comment start sequence
+     "\"\"\"",             // multi-line start (Python doesn't have traditional multi-line comments)
+     "\"\"\"",             // multi-line end
      HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS}, // flags
 };
 
