@@ -258,21 +258,20 @@ int is_separator(int c) {
 int editorUpdateSyntax(erow *row) {
   row->hl = realloc(row->hl, row->rsize);
   memset(row->hl, HL_NORMAL, row->rsize);
+  if (E.syntax == NULL)
+    return -1;
 
   char **keywords = E.syntax->keywords;
 
   char *scs = E.syntax->singleline_comment_start;
   int scs_len = scs ? strlen(scs) : 0;
 
-  // TODO: finish multi-line comment support
   char *mcs = E.syntax->multiline_comment_start;
   int mcs_len = mcs ? strlen(mcs) : 0;
 
   char *mce = E.syntax->multiline_comment_end;
   int mce_len = mce ? strlen(mce) : 0;
 
-  if (E.syntax == NULL)
-    return -1;
   int prev_sep = 1;
   int in_string = 0;
   int in_comment = (row->idx > 0 && E.row[row->idx - 1].hl_open_comment);
