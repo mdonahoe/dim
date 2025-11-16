@@ -19,13 +19,14 @@ def test_cannot_quit_with_unsaved_changes():
     input_str = "Hello, World![ctrl-q]"
     input_tokens = parse_input_string(input_str)
 
-    output = run_with_pty(
+    output, did_exit, exit_code = run_with_pty(
         command=["./dim"],
         input_tokens=input_tokens,
         delay_ms=50,
         timeout=2.0,
         rows=24,
-        cols=80
+        cols=80,
+        return_exit_info=True
     )
 
     # Check that the warning message appears
@@ -36,36 +37,39 @@ def test_cannot_quit_with_unsaved_changes():
     # Check that we're still in the editor (not quit)
     assert "Hello, World!" in output, "Expected editor content to still be visible"
 
+    # IMPORTANT: Check that the process did NOT exit
+    assert not did_exit, "Editor should NOT have exited with unsaved changes after one Ctrl-Q"
+
     print("  ✓ Warning message displayed")
-    print("  ✓ Editor did not quit")
+    print("  ✓ Editor did not quit (process still running)")
     print("  PASSED\n")
     return True
 
 
 def test_quit_after_multiple_ctrl_q():
-    """Test that pressing ctrl-q 3 times will quit even with unsaved changes."""
+    """Test that pressing ctrl-q 4 times will quit even with unsaved changes."""
     print("Test: Quit after multiple ctrl-q presses...")
 
-    # Create content and press ctrl-q twice, then check the warning
-    # On the third ctrl-q, it should quit
-    input_str = "Some content[ctrl-q][ctrl-q][ctrl-q]"
+    # Create content and press ctrl-q 4 times (3 warnings + 1 to actually quit)
+    input_str = "Some content[ctrl-q][ctrl-q][ctrl-q][ctrl-q]"
     input_tokens = parse_input_string(input_str)
 
-    output = run_with_pty(
+    output, did_exit, exit_code = run_with_pty(
         command=["./dim"],
         input_tokens=input_tokens,
         delay_ms=50,
         timeout=2.0,
         rows=24,
-        cols=80
+        cols=80,
+        return_exit_info=True
     )
 
-    # After 2 ctrl-q presses, should show "Press Ctrl-Q 1 more times to quit"
-    # (The snapshot is taken before the final ctrl-q)
-    assert "1 more times to quit" in output or "Ctrl-Q 1" in output, \
-        "Expected warning showing 1 more time needed"
+    # After 4 ctrl-q presses, the editor SHOULD have exited
+    assert did_exit, "Editor should have exited after 4 Ctrl-Q presses with unsaved changes"
+    assert exit_code == 0, f"Editor should exit with code 0, got {exit_code}"
 
-    print("  ✓ Warning countdown working correctly")
+    print("  ✓ Editor exited after 4 Ctrl-Q presses")
+    print(f"  ✓ Exit code: {exit_code}")
     print("  PASSED\n")
     return True
 
@@ -78,13 +82,14 @@ def test_quit_immediately_without_changes():
     input_str = "[sleep:300][ctrl-q]"
     input_tokens = parse_input_string(input_str)
 
-    output = run_with_pty(
+    output, did_exit, exit_code = run_with_pty(
         command=["./dim", "test.py"],
         input_tokens=input_tokens,
         delay_ms=50,
         timeout=2.0,
         rows=24,
-        cols=80
+        cols=80,
+        return_exit_info=True
     )
 
     # Should not see warning message about unsaved changes
@@ -95,8 +100,13 @@ def test_quit_immediately_without_changes():
     assert "test.py" in output, "Should show the filename"
     assert "python" in output, "Should show python filetype"
 
+    # Should have exited immediately
+    assert did_exit, "Editor should have exited immediately without unsaved changes"
+    assert exit_code == 0, f"Editor should exit with code 0, got {exit_code}"
+
     print("  ✓ No unsaved changes warning")
-    print("  ✓ Editor displayed file correctly")
+    print("  ✓ Editor exited immediately")
+    print(f"  ✓ Exit code: {exit_code}")
     print("  PASSED\n")
     return True
 

@@ -29,9 +29,12 @@ CFLAGS_MSAN  = -O1 -g $(STD) -Wall -Wextra -Wpedantic $(FRAME) $(MSAN)
 LDFLAGS_MSAN = $(MSAN)
 
 # Targets
-.PHONY: all clean analyze asan msan
+.PHONY: all clean analyze asan msan test
 
 all: dim color_test
+
+test: dim test_dim.py testty.py
+	python3 test_dim.py
 
 dim: dim.c
 	$(GCC) $(CPPFLAGS) $(CFLAGS_DEBUG) -o $@ $< $(LDFLAGS_DEBUG)

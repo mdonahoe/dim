@@ -251,11 +251,18 @@ def set_terminal_size(fd, rows=24, cols=80):
     winsize = struct.pack("HHHH", rows, cols, 0, 0)
     fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
 
-def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=80):
-    """Run a command in a PTY and send input tokens to it."""
+def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=80, return_exit_info=False):
+    """Run a command in a PTY and send input tokens to it.
+
+    Args:
+        return_exit_info: If True, returns (screen_text, did_exit, exit_code)
+                         If False, returns just screen_text
+    """
 
     screen = TerminalScreen(rows, cols)
     snapshot_screen = None
+    process_exited = False
+    exit_code = None
 
     # Create a pseudo-terminal
     master_fd, slave_fd = pty.openpty()
@@ -347,16 +354,32 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
                 try:
                     wpid, status = os.waitpid(pid, os.WNOHANG)
                     if wpid == pid:
+                        process_exited = True
+                        exit_code = os.WEXITSTATUS(status) if os.WIFEXITED(status) else None
                         break
                 except ChildProcessError:
+                    process_exited = True
                     break
 
-            # Try to terminate the process gracefully
-            try:
-                os.kill(pid, 15)  # SIGTERM
-                os.waitpid(pid, 0)
-            except (ProcessLookupError, ChildProcessError):
-                pass
+            # Check one more time if process exited after timeout
+            if not process_exited:
+                try:
+                    wpid, status = os.waitpid(pid, os.WNOHANG)
+                    if wpid == pid:
+                        process_exited = True
+                        exit_code = os.WEXITSTATUS(status) if os.WIFEXITED(status) else None
+                except ChildProcessError:
+                    process_exited = True
+
+            # Try to terminate the process if it's still running
+            if not process_exited:
+                try:
+                    os.kill(pid, 15)  # SIGTERM
+                    wpid, status = os.waitpid(pid, 0)
+                    if wpid == pid:
+                        exit_code = os.WEXITSTATUS(status) if os.WIFEXITED(status) else None
+                except (ProcessLookupError, ChildProcessError):
+                    process_exited = True
 
     finally:
         os.close(master_fd)
@@ -364,7 +387,10 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
     # Return the snapshot if we took one and current screen is empty
     final_screen = screen.get_screen_text()
     if snapshot_screen and not final_screen.strip():
-        return snapshot_screen
+        final_screen = snapshot_screen
+
+    if return_exit_info:
+        return final_screen, process_exited, exit_code
     return final_screen
 
 def main():
