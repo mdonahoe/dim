@@ -291,20 +291,21 @@ def test_open_new_file_shows_no_name():
 
 
 def test_syntax_highlighting_python():
-    """Test that Python syntax highlighting works for keywords."""
+    """Test that Python syntax highlighting works for keywords, strings, and comments."""
     print("Test: Python syntax highlighting...")
 
     # Open example.py and wait for it to render
     input_str = "[sleep:300][ctrl-q]"
     input_tokens = parse_input_string(input_str)
 
-    output = run_with_pty(
+    output, raw_output = run_with_pty(
         command=["./dim", "example.py"],
         input_tokens=input_tokens,
         delay_ms=50,
         timeout=2.0,
         rows=24,
-        cols=80
+        cols=80,
+        return_raw_output=True
     )
 
     # Check that Python content is visible
@@ -315,8 +316,87 @@ def test_syntax_highlighting_python():
     # The file should be recognized as Python
     assert "python" in output, "Expected 'python' filetype in status bar"
 
+    # Check for explicit highlighted sequences in raw output
+    # Color code 33 = yellow (for keywords like def, class, if, return, etc.)
+    # Color code 35 = magenta (for strings like "Hello, World!")
+    # Color code 36 = cyan (for comments/docstrings like """...""")
+    raw_str = raw_output.decode('utf-8', errors='ignore')
+
+    # Check that specific keywords are highlighted in yellow (33m) followed by reset to white (37m)
+    assert "\x1b[33mdef\x1b[37m" in raw_str, "Expected keyword 'def' to be highlighted in yellow (33m -> 37m)"
+    assert "\x1b[33mclass\x1b[37m" in raw_str, "Expected keyword 'class' to be highlighted in yellow (33m -> 37m)"
+
+    # Check that strings are highlighted in magenta (35m)
+    # The string content should start with the color code
+    assert '\x1b[35m"Hello, World!"' in raw_str, "Expected string '\"Hello, World!\"' to be highlighted in magenta (35m)"
+
+    # Check that docstrings/comments are highlighted in cyan (36m)
+    assert '\x1b[36m"""' in raw_str, "Expected docstring '\"\"\"' to be highlighted in cyan (36m)"
+
     print("  ✓ Python file contents displayed")
     print("  ✓ Python filetype detected")
+    print("  ✓ Keyword highlighting: 'def', 'class' (yellow)")
+    print("  ✓ String highlighting: '\"Hello, World!\"' (magenta)")
+    print("  ✓ Comment highlighting: docstrings (cyan)")
+    print("  PASSED\n")
+    return True
+
+
+def test_syntax_highlighting_c():
+    """Test that C syntax highlighting works with color codes."""
+    print("Test: C syntax highlighting...")
+
+    # Open example.c and wait for it to render
+    input_str = "[sleep:300][ctrl-q]"
+    input_tokens = parse_input_string(input_str)
+
+    output, raw_output = run_with_pty(
+        command=["./dim", "example.c"],
+        input_tokens=input_tokens,
+        delay_ms=50,
+        timeout=2.0,
+        rows=24,
+        cols=80,
+        return_raw_output=True
+    )
+
+    # Check that C content is visible
+    assert "int main" in output, "Expected to see main function"
+    assert "#include" in output, "Expected to see include directive"
+    assert "printf" in output, "Expected to see printf call"
+
+    # The file should be recognized as C
+    assert "example.c" in output, "Expected filename in status bar"
+    assert "c" in output.lower(), "Expected 'c' filetype in status bar"
+
+    # Check for explicit highlighted sequences in raw output
+    # Color code 33 = yellow (for keywords like int, if, return, etc.)
+    # Color code 35 = magenta (for strings like "Hello from C!")
+    # Color code 36 = cyan (for comments /* ... */)
+    raw_str = raw_output.decode('utf-8', errors='ignore')
+
+    # Check that specific keywords are highlighted
+    # Type keywords like 'int' are green (32m), regular keywords are yellow (33m)
+    assert "\x1b[32mint\x1b[37m" in raw_str, "Expected type keyword 'int' to be highlighted in green (32m -> 37m)"
+    assert "\x1b[33mif\x1b[37m" in raw_str, "Expected keyword 'if' to be highlighted in yellow (33m -> 37m)"
+    assert "\x1b[33mreturn\x1b[37m" in raw_str, "Expected keyword 'return' to be highlighted in yellow (33m -> 37m)"
+
+    # Check that strings are highlighted in magenta (35m) followed by white (37m)
+    assert '\x1b[35m"Hello from C!"\x1b[37m' in raw_str, "Expected string '\"Hello from C!\"' to be highlighted in magenta (35m -> 37m)"
+
+    # Check that comments are highlighted in cyan (36m)
+    assert '\x1b[36m/* Example C file' in raw_str, "Expected comment '/* Example C file...' to be highlighted in cyan (36m)"
+
+    # Also check number highlighting (31m = red)
+    assert "\x1b[31m0\x1b[37m" in raw_str or "\x1b[31m1\x1b[37m" in raw_str or "\x1b[31m42\x1b[37m" in raw_str, \
+        "Expected numbers to be highlighted in red (31m -> 37m)"
+
+    print("  ✓ C file contents displayed")
+    print("  ✓ C filetype detected")
+    print("  ✓ Keyword highlighting: 'int' (green), 'if'/'return' (yellow)")
+    print("  ✓ String highlighting: '\"Hello from C!\"' (magenta)")
+    print("  ✓ Comment highlighting: '/* ... */' (cyan)")
+    print("  ✓ Number highlighting: (red)")
     print("  PASSED\n")
     return True
 
@@ -438,6 +518,7 @@ def run_all_tests():
         test_status_bar_shows_python_filetype,
         test_open_new_file_shows_no_name,
         test_syntax_highlighting_python,
+        test_syntax_highlighting_c,
         test_navigation_with_arrow_keys,
         test_save_new_file_creates_file,
         test_modified_indicator_in_status_bar,

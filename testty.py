@@ -251,18 +251,21 @@ def set_terminal_size(fd, rows=24, cols=80):
     winsize = struct.pack("HHHH", rows, cols, 0, 0)
     fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
 
-def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=80, return_exit_info=False):
+def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=80, return_exit_info=False, return_raw_output=False):
     """Run a command in a PTY and send input tokens to it.
 
     Args:
         return_exit_info: If True, returns (screen_text, did_exit, exit_code)
                          If False, returns just screen_text
+        return_raw_output: If True, also returns raw bytes (for checking color codes)
+                          Returns (screen_text, raw_output) or (screen_text, raw_output, did_exit, exit_code)
     """
 
     screen = TerminalScreen(rows, cols)
     snapshot_screen = None
     process_exited = False
     exit_code = None
+    raw_output = b''
 
     # Create a pseudo-terminal
     master_fd, slave_fd = pty.openpty()
@@ -305,6 +308,7 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
             # Read initial output
             try:
                 chunk = os.read(master_fd, 4096)
+                raw_output += chunk
                 screen.process_output(chunk)
             except OSError:
                 pass
@@ -320,6 +324,7 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
                     # After sleep, also read output
                     try:
                         chunk = os.read(master_fd, 4096)
+                        raw_output += chunk
                         screen.process_output(chunk)
                     except OSError:
                         pass
@@ -330,6 +335,7 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
                     # Read any output after each input
                     try:
                         chunk = os.read(master_fd, 4096)
+                        raw_output += chunk
                         screen.process_output(chunk)
                     except OSError:
                         pass
@@ -343,6 +349,7 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
                 try:
                     chunk = os.read(master_fd, 4096)
                     if chunk:
+                        raw_output += chunk
                         screen.process_output(chunk)
                     else:
                         break
@@ -389,7 +396,11 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
     if snapshot_screen and not final_screen.strip():
         final_screen = snapshot_screen
 
-    if return_exit_info:
+    if return_raw_output and return_exit_info:
+        return final_screen, raw_output, process_exited, exit_code
+    elif return_raw_output:
+        return final_screen, raw_output
+    elif return_exit_info:
         return final_screen, process_exited, exit_code
     return final_screen
 
