@@ -1,0 +1,5 @@
+Hello, World!
+This is a test file for the dim editor.
+Line 3: Testing line display
+Line 4: More content here
+Line 5: Final line of the test file
