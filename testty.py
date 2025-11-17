@@ -15,6 +15,17 @@ import subprocess
 import termios
 import struct
 import fcntl
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class Result:
+    """Result from running a command in a PTY."""
+    output: str
+    raw: bytes
+    did_exit: bool
+    exit_code: Optional[int]
 
 
 class TerminalScreen:
@@ -251,14 +262,19 @@ def set_terminal_size(fd, rows=24, cols=80):
     winsize = struct.pack("HHHH", rows, cols, 0, 0)
     fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
 
-def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=80, return_exit_info=False, return_raw_output=False):
+def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=80):
     """Run a command in a PTY and send input tokens to it.
 
     Args:
-        return_exit_info: If True, returns (screen_text, did_exit, exit_code)
-                         If False, returns just screen_text
-        return_raw_output: If True, also returns raw bytes (for checking color codes)
-                          Returns (screen_text, raw_output) or (screen_text, raw_output, did_exit, exit_code)
+        command: List of command and arguments to run
+        input_tokens: List of input tokens (from parse_input_string)
+        delay_ms: Delay in milliseconds between keystrokes
+        timeout: Timeout in seconds
+        rows: Terminal rows
+        cols: Terminal columns
+
+    Returns:
+        Result object with output, raw, did_exit, and exit_code fields
     """
 
     screen = TerminalScreen(rows, cols)
@@ -396,13 +412,12 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
     if snapshot_screen and not final_screen.strip():
         final_screen = snapshot_screen
 
-    if return_raw_output and return_exit_info:
-        return final_screen, raw_output, process_exited, exit_code
-    elif return_raw_output:
-        return final_screen, raw_output
-    elif return_exit_info:
-        return final_screen, process_exited, exit_code
-    return final_screen
+    return Result(
+        output=final_screen,
+        raw=raw_output,
+        did_exit=process_exited,
+        exit_code=exit_code
+    )
 
 def main():
     parser = argparse.ArgumentParser(
@@ -446,17 +461,17 @@ Special sequences:
         return 1
 
     # Run the command
-    output = run_with_pty(command, input_tokens, args.delay, args.timeout, args.rows, args.cols)
+    result = run_with_pty(command, input_tokens, args.delay, args.timeout, args.rows, args.cols)
 
     # Output results
     if args.output:
         with open(args.output, 'w') as f:
-            f.write(output)
-            if output and not output.endswith('\n'):
+            f.write(result.output)
+            if result.output and not result.output.endswith('\n'):
                 f.write('\n')
     else:
         # Print to stdout
-        print(output)
+        print(result.output)
 
     return 0
 
