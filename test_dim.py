@@ -216,6 +216,29 @@ class TestDimFileOperations(unittest.TestCase):
         self.assertIn("[No Name]", result.output, "Expected '[No Name]' in status bar for new file")
         self.assertIn("0 lines", result.output, "Expected '0 lines' for empty new file")
 
+    def test_open_readme_and_view_first_line(self):
+        """Test that dim can open README.md and display its first line."""
+        # Open README.md and wait briefly to let it render
+        input_str = "[sleep:300][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "README.md"],
+            input_tokens=input_tokens,
+            delay_ms=50,
+            timeout=2.0,
+            rows=24,
+            cols=80
+        )
+
+        # Check that the first line of README is visible
+        self.assertIn("dim", result.output, "Expected to see 'dim' (first line of README)")
+        self.assertIn("README.md", result.output, "Expected to see 'README.md' filename in status bar")
+
+        # Should have exited cleanly
+        self.assertTrue(result.did_exit, "Editor should have exited")
+        self.assertEqual(result.exit_code, 0, f"Editor should exit with code 0, got {result.exit_code}")
+
 
 class TestDimStatusBar(unittest.TestCase):
     """Tests for status bar functionality."""
