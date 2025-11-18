@@ -7,11 +7,8 @@ Usage: testty --run PROGRAM [--input INPUT_STRING] [--output FILE] [--delay MS]
 import sys
 import os
 import pty
-import select
 import time
 import argparse
-import re
-import subprocess
 import termios
 import struct
 import fcntl
