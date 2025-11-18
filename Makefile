@@ -34,6 +34,7 @@ LDFLAGS_MSAN = $(MSAN)
 all: dim color_test
 
 test: dim test_dim.py testty.py
+	./testty.py --run python3 --input "hello = 1[enter]"
 	python3 test_dim.py
 
 dim: dim.c
