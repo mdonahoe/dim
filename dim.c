@@ -17,6 +17,12 @@
 #include <time.h>
 #include <unistd.h>
 
+
+int whatever() {
+    // this function can be deleted
+    return 0;
+}
+
 /*** defines ***/
 
 #define DIM_VERSION "0.0.1"
