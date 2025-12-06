@@ -312,7 +312,9 @@ static void ts_highlight_node(erow *row, TSNode n, int start_col, int end_col) {
              strcmp(type, "float") == 0) {
     hl_type = HL_NUMBER;
   } else if (strcmp(type, "primitive_type") == 0 ||
-             strcmp(type, "type_identifier") == 0) {
+             strcmp(type, "type_identifier") == 0 ||
+             strcmp(type, "sized_type_specifier") == 0 ||
+             strcmp(type, "type_qualifier") == 0) {
     hl_type = HL_KEYWORD2;
   } else if (strcmp(type, "if") == 0 || strcmp(type, "else") == 0 ||
              strcmp(type, "while") == 0 || strcmp(type, "for") == 0 ||
@@ -320,7 +322,14 @@ static void ts_highlight_node(erow *row, TSNode n, int start_col, int end_col) {
              strcmp(type, "continue") == 0 || strcmp(type, "switch") == 0 ||
              strcmp(type, "case") == 0 || strcmp(type, "def") == 0 ||
              strcmp(type, "class") == 0 || strcmp(type, "import") == 0 ||
-             strcmp(type, "from") == 0) {
+             strcmp(type, "from") == 0 ||
+             strcmp(type, "struct") == 0 || strcmp(type, "union") == 0 ||
+             strcmp(type, "enum") == 0 || strcmp(type, "typedef") == 0 ||
+             strcmp(type, "static") == 0 || strcmp(type, "extern") == 0 ||
+             strcmp(type, "const") == 0 || strcmp(type, "volatile") == 0 ||
+             strcmp(type, "#include") == 0 || strcmp(type, "#define") == 0 ||
+             strcmp(type, "#ifdef") == 0 || strcmp(type, "#ifndef") == 0 ||
+             strcmp(type, "#endif") == 0) {
     hl_type = HL_KEYWORD1;
   }
 
