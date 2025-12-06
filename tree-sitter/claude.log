@@ -1,0 +1,629 @@
+==================================================================
+Tree-Sitter Test Run with Environment Diagnostics
+==================================================================
+
+Timestamp: Wed Nov 26 07:51:09 PM UTC 2025
+
+=== System Information ===
+Linux b7112100b1bf 6.8.0-71-generic #71-Ubuntu SMP PREEMPT_DYNAMIC Tue Jul 22 16:52:38 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+
+=== Rust Environment ===
+Rust version:
+rustc 1.91.1 (ed61e7d7e 2025-11-07)
+
+Cargo version:
+cargo 1.91.1 (ea2d97820 2025-10-10)
+
+Node version:
+v24.11.1
+
+=== Environment Variables ===
+SHELL: /bin/bash
+TERM: screen-256color
+LANG: en_US.UTF-8
+LC_ALL: en_US.UTF-8
+LC_CTYPE: 
+TZ: 
+PWD: /root/tree-sitter
+USER: 
+HOME: /root
+
+=== Terminal Information ===
+Not running in a TTY
+
+=== C/C++ Toolchain ===
+GCC version:
+gcc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0
+
+Clang version:
+/root/tree-sitter/run_tests_with_env.sh: line 69: clang: command not found
+
+libclang location:
+
+=== Git Repository State ===
+Current branch:
+master
+
+Git status:
+?? DEBUGGING_TEST_FAILURES.md
+?? SETUP_MAKE_TEST.md
+?? example
+?? example.c
+?? matt.log
+?? run_tests_with_env.sh
+?? simple_example
+?? simple_example.c
+?? test_output.log
+
+Last commit:
+14b47080 fix(loader): write Wasm lib directly to lib dir
+
+=== File System Information ===
+Filesystem     Type    1K-blocks     Used Available Use% Mounted on
+overlay        overlay  50988700 15485272  32892652  33% /
+
+=== Fixture Grammars Status ===
+Grammar fixtures present:
+bash
+c
+cpp
+embedded-template
+go
+html
+java
+javascript
+jsdoc
+json
+php
+python
+ruby
+rust
+typescript
+
+=== Cargo/Rust Cache Information ===
+Cargo home: 
+175M	/root/.cargo
+
+Target directory size:
+3.5G	target
+
+==================================================================
+Starting make test...
+==================================================================
+
+cargo xtask fetch-fixtures
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running `target/debug/xtask fetch-fixtures`
+Fetching the bash grammar...
+bash grammar is already at tag v0.25.0
+Fetching the c grammar...
+c grammar is already at tag v0.24.1
+Fetching the cpp grammar...
+cpp grammar is already at tag v0.23.4
+Fetching the embedded-template grammar...
+embedded-template grammar is already at tag v0.25.0
+Fetching the go grammar...
+go grammar is already at tag v0.25.0
+Fetching the html grammar...
+html grammar is already at tag v0.23.2
+Fetching the java grammar...
+java grammar is already at tag v0.23.5
+Fetching the javascript grammar...
+javascript grammar is already at tag v0.25.0
+Fetching the jsdoc grammar...
+jsdoc grammar is already at tag v0.23.2
+Fetching the json grammar...
+json grammar is already at tag v0.24.8
+Fetching the php grammar...
+php grammar is already at tag v0.24.2
+Fetching the python grammar...
+python grammar is already at tag v0.23.6
+Fetching the ruby grammar...
+ruby grammar is already at tag v0.23.1
+Fetching the rust grammar...
+rust grammar is already at tag v0.24.0
+Fetching the typescript grammar...
+typescript grammar is already at tag v0.23.2
+cargo xtask generate-fixtures
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running `target/debug/xtask generate-fixtures`
+    Finished `release` profile [optimized] target(s) in 0.34s
+Regenerating php parser
+Regenerating php_only parser
+Regenerating tsx parser
+Regenerating typescript parser
+Regenerating cpp parser
+Regenerating html parser
+Regenerating embedded-template parser
+Regenerating bash parser
+Regenerating python parser
+Regenerating jsdoc parser
+Regenerating json parser
+Regenerating c parser
+Regenerating rust parser
+Regenerating javascript parser
+Regenerating java parser
+Regenerating ruby parser
+Regenerating go parser
+cargo xtask test
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.31s
+     Running `target/debug/xtask test`
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+     Running unittests binding_rust/lib.rs (target/debug/deps/tree_sitter-55529c5acc0738a2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/tree_sitter_cli.rs (target/debug/deps/tree_sitter_cli-8fdef9a913214aa2)
+
+running 268 tests
+test highlight::tests::test_parse_style ... ok
+test test::tests::run_tests_simple ... ok
+test test::tests::test_format_sexp ... ok
+test test::tests::test_parse_test_content_simple ... ok
+test test::tests::test_parse_test_content_with_comments_in_sexp ... ok
+test test::tests::test_parse_test_content_with_dashes_in_source_code ... ok
+test test::tests::test_parse_test_content_with_newlines_in_test_names ... ok
+test test::tests::test_parse_test_content_with_suffixes ... ok
+test test::tests::test_parse_test_with_markers ... ok
+test test::tests::test_write_tests_to_buffer ... ok
+test tests::async_boundary_test::test_cursor_across_async_boundaries ... ok
+test tests::async_boundary_test::test_node_across_async_boundaries ... ok
+test tests::async_boundary_test::test_node_and_cursor_together ... ok
+test tests::corpus_test::test_corpus_for_bash_language ... ok
+test tests::corpus_test::test_corpus_for_c_language ... ok
+test tests::corpus_test::test_corpus_for_cpp_language ... ok
+test tests::corpus_test::test_corpus_for_embedded_template_language ... ok
+test tests::corpus_test::test_corpus_for_go_language ... ok
+test tests::corpus_test::test_corpus_for_html_language ... ok
+test tests::corpus_test::test_corpus_for_java_language ... ok
+test tests::corpus_test::test_corpus_for_javascript_language ... ok
+test tests::corpus_test::test_corpus_for_json_language ... ok
+test tests::corpus_test::test_corpus_for_php_language ... ok
+test tests::corpus_test::test_corpus_for_python_language ... ok
+test tests::corpus_test::test_corpus_for_ruby_language ... ok
+test tests::corpus_test::test_corpus_for_rust_language ... ok
+test tests::corpus_test::test_corpus_for_tsx_language ... ok
+test tests::corpus_test::test_corpus_for_typescript_language ... ok
+test tests::corpus_test::test_feature_corpus_files ... ok
+test tests::detect_language::detect_language_by_double_barrel_file_extension ... ok
+test tests::detect_language::detect_language_by_first_line_regex ... ok
+test tests::detect_language::detect_language_without_file_extension ... ok
+test tests::detect_language::detect_language_without_filename ... ok
+test tests::highlight_test::test_decode_utf8_lossy ... ok
+test tests::highlight_test::test_highlighting_cancellation ... ok
+test tests::highlight_test::test_highlighting_carriage_returns ... ok
+test tests::highlight_test::test_highlighting_ejs_with_html_and_javascript ... ok
+test tests::highlight_test::test_highlighting_empty_lines ... ok
+test tests::highlight_test::test_highlighting_injected_html_in_javascript ... ok
+test tests::highlight_test::test_highlighting_injected_javascript_in_html ... ok
+test tests::highlight_test::test_highlighting_injected_javascript_in_html_mini ... ok
+test tests::highlight_test::test_highlighting_javascript ... ok
+test tests::highlight_test::test_highlighting_javascript_with_jsdoc ... ok
+test tests::highlight_test::test_highlighting_multiline_nodes_to_html ... ok
+test tests::highlight_test::test_highlighting_via_c_api ... ok
+test tests::highlight_test::test_highlighting_with_all_captures_applied ... ok
+test tests::highlight_test::test_highlighting_with_content_children_included ... ok
+test tests::highlight_test::test_highlighting_with_local_variable_tracking ... ok
+test tests::language_test::test_lookahead_iterator ... ok
+test tests::language_test::test_lookahead_iterator_modifiable_only_by_mut ... ok
+test tests::language_test::test_supertypes ... ok
+test tests::language_test::test_symbol_metadata_checks ... ok
+test tests::node_test::test_descendant_count_single_node_tree ... ok
+test tests::node_test::test_edit_point ... ok
+test tests::node_test::test_edit_range ... ok
+test tests::node_test::test_first_child_for_offset ... ok
+test tests::node_test::test_first_named_child_for_offset ... ok
+test tests::node_test::test_hidden_zero_width_node_with_visible_child ... ok
+test tests::node_test::test_next_sibling_of_zero_width_node ... ok
+test tests::node_test::test_node_child ... ok
+test tests::node_test::test_node_child_by_field_name_with_extra_hidden_children ... ok
+test tests::node_test::test_node_children ... ok
+test tests::node_test::test_node_children_by_field_name ... ok
+test tests::node_test::test_node_descendant_count ... ok
+test tests::node_test::test_node_descendant_for_range ... ok
+test tests::node_test::test_node_edit ... ok
+test tests::node_test::test_node_field_calls_in_language_without_fields ... ok
+test tests::node_test::test_node_field_name_for_child ... ok
+test tests::node_test::test_node_field_name_for_named_child ... ok
+test tests::node_test::test_node_field_names ... ok
+test tests::node_test::test_node_is_error ... ok
+test tests::node_test::test_node_is_extra ... ok
+test tests::node_test::test_node_is_named_but_aliased_as_anonymous ... ok
+test tests::node_test::test_node_named_child ... ok
+test tests::node_test::test_node_named_child_with_aliases_and_extras ... ok
+test tests::node_test::test_node_numeric_symbols_respect_simple_aliases ... ok
+test tests::node_test::test_node_parent_of_child_by_field_name ... ok
+test tests::node_test::test_node_sexp ... ok
+test tests::node_test::test_parent_of_zero_width_node ... ok
+test tests::node_test::test_root_node_with_offset ... ok
+test tests::parser_test::test_decode_cp1252 ... ok
+test tests::parser_test::test_decode_macintosh ... ok
+test tests::parser_test::test_decode_utf24le ... ok
+test tests::parser_test::test_decode_utf32 ... ok
+test tests::parser_test::test_grammar_that_should_hang_and_not_segfault ... ok
+test tests::parser_test::test_grammars_that_can_hang_on_eof ... ok
+test tests::parser_test::test_grammars_that_should_not_compile ... ok
+test tests::parser_test::test_parse_options_reborrow ... ok
+test tests::parser_test::test_parse_stack_recursive_merge_error_cost_calculation_bug ... ok
+test tests::parser_test::test_parsing_after_detecting_error_in_the_middle_of_a_string_token ... ok
+test tests::parser_test::test_parsing_after_editing_beginning_of_code ... ok
+test tests::parser_test::test_parsing_after_editing_end_of_code ... ok
+test tests::parser_test::test_parsing_after_editing_tree_that_depends_on_column_position ... ok
+test tests::parser_test::test_parsing_after_editing_tree_that_depends_on_column_values ... ok
+test tests::parser_test::test_parsing_by_halting_at_offset ... ok
+test tests::parser_test::test_parsing_cancelled_by_another_thread ... ok
+test tests::parser_test::test_parsing_empty_file_with_reused_tree ... ok
+test tests::parser_test::test_parsing_ends_when_input_callback_returns_empty ... ok
+test tests::parser_test::test_parsing_error_in_invalid_included_ranges ... ok
+test tests::parser_test::test_parsing_get_column_at_eof ... ok
+test tests::parser_test::test_parsing_invalid_chars_at_eof ... ok
+test tests::parser_test::test_parsing_on_multiple_threads ... ok
+test tests::parser_test::test_parsing_simple_string ... ok
+test tests::parser_test::test_parsing_text_with_byte_order_mark ... ok
+test tests::parser_test::test_parsing_unexpected_null_characters_within_source ... ok
+test tests::parser_test::test_parsing_utf16_code_with_errors_at_the_end_of_an_included_range ... ok
+test tests::parser_test::test_parsing_with_a_newly_excluded_range ... ok
+test tests::parser_test::test_parsing_with_a_newly_included_range ... ok
+test tests::parser_test::test_parsing_with_a_timeout ... ok
+test tests::parser_test::test_parsing_with_a_timeout_and_a_reset ... ok
+test tests::parser_test::test_parsing_with_a_timeout_and_implicit_reset ... ok
+test tests::parser_test::test_parsing_with_callback_returning_owned_strings ... ok
+test tests::parser_test::test_parsing_with_custom_utf16_be_input ... ok
+test tests::parser_test::test_parsing_with_custom_utf16le_input ... ok
+test tests::parser_test::test_parsing_with_custom_utf8_input ... ok
+test tests::parser_test::test_parsing_with_debug_graph_enabled ... ok
+test tests::parser_test::test_parsing_with_external_scanner_that_uses_included_range_boundaries ... ok
+test tests::parser_test::test_parsing_with_included_range_containing_mismatched_positions ... ok
+test tests::parser_test::test_parsing_with_included_ranges_and_missing_tokens ... ok
+test tests::parser_test::test_parsing_with_logging ... ok
+test tests::parser_test::test_parsing_with_multiple_included_ranges ... ok
+test tests::parser_test::test_parsing_with_one_included_range ... ok
+test tests::parser_test::test_parsing_with_scanner_logging ... ok
+test tests::parser_test::test_parsing_with_timeout_and_no_completion ... ok
+test tests::parser_test::test_parsing_with_timeout_during_balancing ... ok
+test tests::parser_test::test_parsing_with_timeout_when_error_detected ... ok
+test tests::pathological_test::test_pathological_example_1 ... ok
+test tests::query_test::test_capture_quantifiers ... ok
+test tests::query_test::test_consecutive_zero_or_modifiers ... ok
+test tests::query_test::test_grammar_with_aliased_literal_query ... ok
+test tests::query_test::test_pattern_alternatives_follow_last_child_constraint ... ok
+test tests::query_test::test_query_allows_error_nodes_with_children ... ok
+test tests::query_test::test_query_alternative_predicate_prefix ... ok
+test tests::query_test::test_query_assertion_on_unreachable_node_with_child ... ok
+test tests::query_test::test_query_capture_names ... ok
+test tests::query_test::test_query_captures_and_matches_iterators_are_fused ... ok
+test tests::query_test::test_query_captures_basic ... ok
+test tests::query_test::test_query_captures_ordered_by_both_start_and_end_positions ... ok
+test tests::query_test::test_query_captures_with_definite_pattern_containing_many_nested_matches ... ok
+test tests::query_test::test_query_captures_with_duplicates ... ok
+test tests::query_test::test_query_captures_with_many_nested_results_with_fields ... ok
+test tests::query_test::test_query_captures_with_many_nested_results_without_fields ... ok
+test tests::query_test::test_query_captures_with_matches_removed ... ok
+test tests::query_test::test_query_captures_with_matches_removed_before_they_finish ... ok
+test tests::query_test::test_query_captures_with_predicates ... ok
+test tests::query_test::test_query_captures_with_quoted_predicate_args ... ok
+test tests::query_test::test_query_captures_with_text_conditions ... ok
+test tests::query_test::test_query_captures_with_too_many_nested_results ... ok
+test tests::query_test::test_query_captures_within_byte_range ... ok
+test tests::query_test::test_query_captures_within_byte_range_assigned_after_iterating ... ok
+test tests::query_test::test_query_comments ... ok
+test tests::query_test::test_query_compiler_oob_access ... ok
+test tests::query_test::test_query_cursor_next_capture_with_byte_range ... ok
+test tests::query_test::test_query_cursor_next_capture_with_point_range ... ok
+test tests::query_test::test_query_disable_pattern ... ok
+test tests::query_test::test_query_error_does_not_oob ... ok
+test tests::query_test::test_query_errors_on_impossible_patterns ... ok
+test tests::query_test::test_query_errors_on_invalid_predicates ... ok
+test tests::query_test::test_query_errors_on_invalid_symbols ... ok
+test tests::query_test::test_query_errors_on_invalid_syntax ... ok
+test tests::query_test::test_query_execution_with_points_causing_underflow ... ok
+test tests::query_test::test_query_execution_with_timeout ... ok
+test tests::query_test::test_query_is_pattern_guaranteed_at_step ... ok
+test tests::query_test::test_query_is_pattern_non_local ... ok
+test tests::query_test::test_query_is_pattern_rooted ... ok
+test tests::query_test::test_query_lifetime_is_separate_from_nodes_lifetime ... ok
+test tests::query_test::test_query_matches_capturing_error_nodes ... ok
+test tests::query_test::test_query_matches_capturing_missing_nodes ... ok
+test tests::query_test::test_query_matches_different_queries_same_cursor ... ok
+test tests::query_test::test_query_matches_in_language_with_simple_aliases ... ok
+test tests::query_test::test_query_matches_with_alternations_and_predicates ... ok
+test tests::query_test::test_query_matches_with_alternatives_and_too_many_permutations_to_track ... ok
+test tests::query_test::test_query_matches_with_alternatives_at_root ... ok
+test tests::query_test::test_query_matches_with_alternatives_in_repetitions ... ok
+test tests::query_test::test_query_matches_with_alternatives_under_fields ... ok
+test tests::query_test::test_query_matches_with_anonymous_tokens ... ok
+test tests::query_test::test_query_matches_with_captured_wildcard_at_root ... ok
+test tests::query_test::test_query_matches_with_deeply_nested_patterns_with_fields ... ok
+test tests::query_test::test_query_matches_with_different_tokens_with_the_same_string_value ... ok
+test tests::query_test::test_query_matches_with_extra_children ... ok
+test tests::query_test::test_query_matches_with_field_at_root ... ok
+test tests::query_test::test_query_matches_with_immediate_siblings ... ok
+test tests::query_test::test_query_matches_with_indefinite_step_containing_no_captures ... ok
+test tests::query_test::test_query_matches_with_last_named_child ... ok
+test tests::query_test::test_query_matches_with_leading_zero_or_more_repeated_leaf_nodes ... ok
+test tests::query_test::test_query_matches_with_many_overlapping_results ... ok
+test tests::query_test::test_query_matches_with_many_results ... ok
+test tests::query_test::test_query_matches_with_multiple_captures_on_a_node ... ok
+test tests::query_test::test_query_matches_with_multiple_on_same_root ... ok
+test tests::query_test::test_query_matches_with_multiple_patterns_different_roots ... ok
+test tests::query_test::test_query_matches_with_multiple_patterns_same_root ... ok
+test tests::query_test::test_query_matches_with_multiple_repetition_patterns_that_intersect_other_pattern ... ok
+test tests::query_test::test_query_matches_with_named_wildcard ... ok
+test tests::query_test::test_query_matches_with_negated_fields ... ok
+test tests::query_test::test_query_matches_with_nested_optional_nodes ... ok
+test tests::query_test::test_query_matches_with_nested_repetitions ... ok
+test tests::query_test::test_query_matches_with_nesting_and_no_fields ... ok
+test tests::query_test::test_query_matches_with_no_captures ... ok
+test tests::query_test::test_query_matches_with_non_terminal_repetitions_within_root ... ok
+test tests::query_test::test_query_matches_with_optional_nodes_inside_of_repetitions ... ok
+test tests::query_test::test_query_matches_with_repeated_fields ... ok
+test tests::query_test::test_query_matches_with_repeated_internal_nodes ... ok
+test tests::query_test::test_query_matches_with_repeated_leaf_nodes ... ok
+test tests::query_test::test_query_matches_with_simple_alternatives ... ok
+test tests::query_test::test_query_matches_with_simple_pattern ... ok
+test tests::query_test::test_query_matches_with_supertypes ... ok
+test tests::query_test::test_query_matches_with_too_many_permutations_to_track ... ok
+test tests::query_test::test_query_matches_with_top_level_repetitions ... ok
+test tests::query_test::test_query_matches_with_trailing_optional_nodes ... ok
+test tests::query_test::test_query_matches_with_trailing_repetitions_of_last_child ... ok
+test tests::query_test::test_query_matches_with_unrooted_patterns_intersecting_byte_range ... ok
+test tests::query_test::test_query_matches_with_wildcard_at_root_intersecting_byte_range ... ok
+test tests::query_test::test_query_matches_with_wildcard_at_the_root ... ok
+test tests::query_test::test_query_matches_with_wildcard_within_wildcard ... ok
+test tests::query_test::test_query_matches_within_byte_range ... ok
+test tests::query_test::test_query_matches_within_point_range ... ok
+test tests::query_test::test_query_matches_within_range_of_long_repetition ... ok
+test tests::query_test::test_query_max_start_depth ... ok
+test tests::query_test::test_query_max_start_depth_more ... ok
+test tests::query_test::test_query_on_empty_source_code ... ok
+test tests::query_test::test_query_quantified_captures ... ok
+test tests::query_test::test_query_random ... ok
+test tests::query_test::test_query_sibling_patterns_dont_match_children_of_an_error ... ok
+test tests::query_test::test_query_start_end_byte_for_pattern ... ok
+test tests::query_test::test_query_supertype_with_anonymous_node ... ok
+test tests::query_test::test_query_text_callback_returns_chunks ... ok
+test tests::query_test::test_query_verifies_possible_patterns_with_aliased_parent_nodes ... ok
+test tests::query_test::test_query_wildcard_with_immediate_first_child ... ok
+test tests::query_test::test_query_with_anonymous_error_node ... ok
+test tests::query_test::test_query_with_first_child_in_group_is_anchor ... ok
+test tests::query_test::test_query_with_no_patterns ... ok
+test tests::query_test::test_query_with_predicate_causing_oob_access ... ok
+test tests::query_test::test_repetitions_before_with_alternatives ... ok
+test tests::query_test::test_unfinished_captures_are_not_definite_with_pending_anchors ... ok
+test tests::query_test::test_wildcard_behavior_before_anchor ... ok
+test tests::query_test::test_wildcard_parent_allows_fallible_child_patterns ... ok
+test tests::tags_test::test_invalid_capture ... ok
+test tests::tags_test::test_tags_cancellation ... ok
+test tests::tags_test::test_tags_columns_measured_in_utf16_code_units ... ok
+test tests::tags_test::test_tags_javascript ... ok
+test tests::tags_test::test_tags_python ... ok
+test tests::tags_test::test_tags_ruby ... ok
+test tests::tags_test::test_tags_via_c_api ... ok
+test tests::tags_test::test_tags_with_parse_error ... ok
+test tests::test_highlight_test::test_highlight_test_with_basic_test ... ok
+test tests::test_tags_test::test_tags_test_with_basic_test ... ok
+test tests::text_provider_test::test_text_provider_callback_with_owned_arc_of_bytes_slice ... ok
+test tests::text_provider_test::test_text_provider_callback_with_owned_bytes_vec_slice ... ok
+test tests::text_provider_test::test_text_provider_callback_with_owned_string_slice ... ok
+test tests::text_provider_test::test_text_provider_callback_with_str_slice ... ok
+test tests::text_provider_test::test_text_provider_for_arc_of_bytes_slice ... ok
+test tests::text_provider_test::test_text_provider_for_box_of_bytes_slice ... ok
+test tests::text_provider_test::test_text_provider_for_box_of_str_slice ... ok
+test tests::text_provider_test::test_text_provider_for_str_slice ... ok
+test tests::text_provider_test::test_text_provider_for_string ... ok
+test tests::text_provider_test::test_text_provider_for_vec_of_bytes ... ok
+test tests::text_provider_test::test_text_provider_for_vec_utf16_text ... ok
+test tests::tree_test::test_consistency_with_mid_codepoint_edit ... ok
+test tests::tree_test::test_get_changed_ranges ... ok
+test tests::tree_test::test_tree_cursor ... ok
+test tests::tree_test::test_tree_cursor_child_for_point ... ok
+test tests::tree_test::test_tree_cursor_fields ... ok
+test tests::tree_test::test_tree_cursor_on_aliased_root_with_extra_child ... ok
+test tests::tree_test::test_tree_cursor_previous_sibling ... ok
+test tests::tree_test::test_tree_cursor_previous_sibling_with_aliases ... ok
+test tests::tree_test::test_tree_edit ... ok
+test tests::tree_test::test_tree_edit_with_included_ranges ... ok
+test tests::tree_test::test_tree_node_equality ... ok
+
+test result: ok. 268 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 55.90s
+
+     Running unittests src/main.rs (target/debug/deps/tree_sitter-7a8b5631dd5bdadc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/tree_sitter_config.rs (target/debug/deps/tree_sitter_config-bd3d14b8d42d053e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/generate.rs (target/debug/deps/tree_sitter_generate-9add5f88997384ec)
+
+running 59 tests
+test build_tables::token_conflicts::tests::test_starting_characters ... ok
+test build_tables::token_conflicts::tests::test_token_conflicts ... ok
+test build_tables::token_conflicts::tests::test_token_conflicts_with_open_ended_tokens ... ok
+test build_tables::token_conflicts::tests::test_token_conflicts_with_separators ... ok
+test nfa::tests::test_adding_ranges ... ok
+test nfa::tests::test_adding_sets ... ok
+test nfa::tests::test_character_set_does_intersect ... ok
+test nfa::tests::test_character_set_intersection_difference_ops ... ok
+test nfa::tests::test_character_set_simplify_ignoring ... ok
+test nfa::tests::test_group_transitions ... ok
+test node_types::tests::test_get_variable_info ... ok
+test node_types::tests::test_get_variable_info_with_inherited_fields ... ok
+test node_types::tests::test_get_variable_info_with_repetitions_inside_fields ... ok
+test node_types::tests::test_get_variable_info_with_supertypes ... ok
+test node_types::tests::test_node_types_deeper_extras ... ok
+test node_types::tests::test_node_types_for_aliased_nodes ... ok
+test node_types::tests::test_node_types_for_children_without_fields ... ok
+test node_types::tests::test_node_types_simple ... ok
+test node_types::tests::test_node_types_simple_extras ... ok
+test node_types::tests::test_node_types_with_fields_on_hidden_tokens ... ok
+test node_types::tests::test_node_types_with_inlined_rules ... ok
+test node_types::tests::test_node_types_with_multiple_rules_same_alias_name ... ok
+test node_types::tests::test_node_types_with_multiple_valued_fields ... ok
+test node_types::tests::test_node_types_with_supertypes ... ok
+test node_types::tests::test_node_types_with_tokens_aliased_to_match_rules ... ok
+test parse_grammar::tests::test_parse_grammar ... ok
+test prepare_grammar::expand_repeats::tests::test_basic_repeat_expansion ... ok
+test prepare_grammar::expand_repeats::tests::test_expansion_of_nested_repeats ... ok
+test prepare_grammar::expand_repeats::tests::test_expansion_of_repeats_at_top_of_hidden_rules ... ok
+test prepare_grammar::expand_repeats::tests::test_repeat_deduplication ... ok
+test prepare_grammar::expand_tokens::tests::test_rule_expansion ... ok
+test prepare_grammar::extract_default_aliases::tests::test_extract_simple_aliases ... ok
+test prepare_grammar::extract_tokens::test::test_error_on_external_with_same_name_as_non_terminal ... ok
+test prepare_grammar::extract_tokens::test::test_extract_externals ... ok
+test prepare_grammar::extract_tokens::test::test_extracting_extra_symbols ... ok
+test prepare_grammar::extract_tokens::test::test_extraction ... ok
+test prepare_grammar::extract_tokens::test::test_extraction_on_hidden_terminal ... ok
+test prepare_grammar::extract_tokens::test::test_extraction_with_empty_string ... ok
+test prepare_grammar::extract_tokens::test::test_start_rule_is_token ... ok
+test prepare_grammar::flatten_grammar::tests::test_flatten_grammar ... ok
+test prepare_grammar::flatten_grammar::tests::test_flatten_grammar_with_field_names ... ok
+test prepare_grammar::flatten_grammar::tests::test_flatten_grammar_with_final_precedence ... ok
+test prepare_grammar::flatten_grammar::tests::test_flatten_grammar_with_maximum_dynamic_precedence ... ok
+test prepare_grammar::flatten_grammar::tests::test_flatten_grammar_with_recursive_inline_variable ... ok
+test prepare_grammar::intern_symbols::tests::test_basic_repeat_expansion ... ok
+test prepare_grammar::intern_symbols::tests::test_grammar_with_undefined_symbols ... ok
+test prepare_grammar::intern_symbols::tests::test_interning_external_token_names ... ok
+test prepare_grammar::process_inlines::tests::test_basic_inlining ... ok
+test prepare_grammar::process_inlines::tests::test_error_when_inlining_tokens ... ok
+test prepare_grammar::process_inlines::tests::test_inlining_with_precedence_and_alias ... ok
+test prepare_grammar::process_inlines::tests::test_nested_inlining ... ok
+test prepare_grammar::tests::test_validate_precedences_with_conflicting_order ... ok
+test prepare_grammar::tests::test_validate_precedences_with_undeclared_precedence ... ok
+test quickjs::tests::test_basic_grammar_execution ... ok
+test quickjs::tests::test_json_module_loading ... ok
+test quickjs::tests::test_module_imports ... ok
+test quickjs::tests::test_resource_limits ... ok
+test tests::test_language_versions_are_in_sync ... ok
+test tests::test_parser_header_in_sync ... ok
+
+test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+     Running unittests src/highlight.rs (target/debug/deps/tree_sitter_highlight-72fd95956207dc4a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/language.rs (target/debug/deps/tree_sitter_language-8ff1087457057174)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/loader.rs (target/debug/deps/tree_sitter_loader-37e1a16e77a02df7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/tags.rs (target/debug/deps/tree_sitter_tags-d0902aeedbb07478)
+
+running 2 tests
+test tests::test_get_line ... ok
+test tests::test_get_line_trims ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tree_sitter_tests_proc_macro-efa50658a5fc63ed)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/xtask-fb2a1eea4f77bc74)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tree_sitter
+
+running 1 test
+test lib/binding_rust/lib.rs - Language::next_state (line 650) ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tree_sitter_cli
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tree_sitter_config
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tree_sitter_generate
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tree_sitter_highlight
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tree_sitter_language
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tree_sitter_loader
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tree_sitter_tags
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests tree_sitter_tests_proc_macro
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+==================================================================
+Test run completed
+Exit code: 0
+==================================================================
+
+=== Test Summary ===
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 268 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 55.90s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

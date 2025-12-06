@@ -1,0 +1,23 @@
+I'm attempting to remove a function from this codebase and refactor.
+```
+:tree-sitter$ git grep ts_language_is_wasm
+lib/binding_rust/bindings.rs:    pub fn ts_language_is_wasm(arg1: *const TSLanguage) -> bool;
+lib/binding_rust/wasm_language.rs:        unsafe { ffi::ts_language_is_wasm(self.0) }
+lib/include/tree_sitter/api.h:bool ts_language_is_wasm(const TSLanguage *);
+lib/src/language.c:  if (self && ts_language_is_wasm(self)) {
+lib/src/language.c:  if (self && ts_language_is_wasm(self)) {
+lib/src/parser.c:  if (ts_language_is_wasm(self->language)) {
+lib/src/parser.c:  if (ts_language_is_wasm(self->language)) {
+lib/src/parser.c:    if (ts_language_is_wasm(self->language)) {
+lib/src/parser.c:    !ts_language_is_wasm(self->language)
+lib/src/parser.c:  if (ts_language_is_wasm(self->language)) {
+lib/src/parser.c:  if (ts_language_is_wasm(self->language)) {
+lib/src/parser.c:  if (ts_language_is_wasm(self->language)) {
+lib/src/parser.c:    if (ts_language_is_wasm(language)) {
+lib/src/parser.c:  if (ts_language_is_wasm(self->language)) {
+lib/src/parser.c:  if (self->language && ts_language_is_wasm(self->language)) {
+lib/src/parser.c:  if (self->language && ts_language_is_wasm(self->language)) {
+```
+
+Your Task: Assume that ts_language_is_wasm(...) always returns false, and refactor the code to remove any branches that only run if it was true.
+

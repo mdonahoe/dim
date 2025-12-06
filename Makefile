@@ -37,8 +37,21 @@ test: dim test_dim.py testty.py
 	./testty.py --run python3 --input "hello = 1[enter]"
 	python3 test_dim.py
 
+TS_SRC := $(wildcard tree-sitter/lib/src/*.c)
+TS_SRC := $(filter-out tree-sitter/lib/src/lib.c,$(TS_SRC))
+
 dim: dim.c
-	$(GCC) $(CPPFLAGS) $(CFLAGS_DEBUG) -o $@ $< $(LDFLAGS_DEBUG)
+	$(GCC) $(CPPFLAGS) $(CFLAGS_DEBUG) -o $@ $< \
+		$(TS_SRC) \
+		tree-sitter/grammars/c/src/parser.c \
+		tree-sitter/grammars/python/src/parser.c \
+		tree-sitter/grammars/python/src/scanner.c \
+		-I tree-sitter/lib/include \
+		-I tree-sitter/lib/src \
+		-I tree-sitter/lib/src/wasm \
+		-I tree-sitter/grammars/python/src \
+		-D_DEFAULT_SOURCE -D_DARWIN_C_SOURCE \
+		$(LDFLAGS_DEBUG)
 
 asan: dim.c
 	$(GCC) $(CPPFLAGS) $(CFLAGS_ASAN) -o dim $< $(LDFLAGS_ASAN)

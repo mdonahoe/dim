@@ -16,12 +16,11 @@
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+#include <tree_sitter/api.h>
 
 
-int whatever() {
-    // this function can be deleted
-    return 0;
-}
+TSLanguage *tree_sitter_c(void);
+TSLanguage *tree_sitter_python(void);
 
 /*** defines ***/
 
@@ -67,6 +66,7 @@ struct editorSyntax {
   char *multiline_comment_start;
   char *multiline_comment_end;
   int flags;
+  TSLanguage *(*ts_language)(void);
 };
 
 typedef struct erow {
@@ -94,6 +94,8 @@ struct editorConfig {
   time_t statusmsg_time;
   struct editorSyntax *syntax;
   struct termios orig_termios;
+  TSParser *ts_parser;
+  TSTree *ts_tree;
 };
 
 struct editorConfig E;
@@ -127,14 +129,16 @@ struct editorSyntax HLDB[] = {
      "//",            // line comment start sequence
      "/*",            // multi-line start
      "*/",            // multi-line end
-     HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS}, // flags
+     HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS, // flags
+     tree_sitter_c},  // tree-sitter language
     {"python",        // lang
      PY_HL_extensions, // filetypes
      PY_HL_keywords,   // keywords
      "#",              // line comment start sequence
      "\"\"\"",             // multi-line start (Python doesn't have traditional multi-line comments)
      "\"\"\"",             // multi-line end
-     HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS}, // flags
+     HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS, // flags
+     tree_sitter_python}, // tree-sitter language
 };
 
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
@@ -144,6 +148,7 @@ struct editorSyntax HLDB[] = {
 void editorSetStatusMessage(const char *fmt, ...);
 void editorRefreshScreen(void);
 char *editorPrompt(char *prompt, void (*callback)(char *, int));
+char *editorRowsToString(int *buflen);
 
 /*** terminal ***/
 
@@ -278,6 +283,107 @@ int getWindowSize(int *rows, int *cols) {
 
 int is_separator(int c) {
   return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];", c) != NULL;
+}
+
+static void ts_highlight_node(erow *row, TSNode n, int start_col, int end_col) {
+  const char *type = ts_node_type(n);
+  int hl_type = HL_NORMAL;
+
+  // Map node types to highlight types
+  if (strcmp(type, "comment") == 0) {
+    hl_type = HL_COMMENT;
+  } else if (strcmp(type, "string_start") == 0 || strcmp(type, "string_end") == 0) {
+    // For Python, check if it's a triple-quoted string (docstring)
+    // Triple quotes should be cyan (comment color), single quotes should be magenta (string color)
+    int len = end_col - start_col;
+    if (len >= 3) {
+      // Triple-quoted string delimiter
+      hl_type = HL_COMMENT;
+    } else {
+      // Single or double quote
+      hl_type = HL_STRING;
+    }
+  } else if (strcmp(type, "string_literal") == 0 ||
+             strcmp(type, "string") == 0 ||
+             strcmp(type, "string_content") == 0) {
+    hl_type = HL_STRING;
+  } else if (strcmp(type, "number_literal") == 0 ||
+             strcmp(type, "integer") == 0 ||
+             strcmp(type, "float") == 0) {
+    hl_type = HL_NUMBER;
+  } else if (strcmp(type, "primitive_type") == 0 ||
+             strcmp(type, "type_identifier") == 0) {
+    hl_type = HL_KEYWORD2;
+  } else if (strcmp(type, "if") == 0 || strcmp(type, "else") == 0 ||
+             strcmp(type, "while") == 0 || strcmp(type, "for") == 0 ||
+             strcmp(type, "return") == 0 || strcmp(type, "break") == 0 ||
+             strcmp(type, "continue") == 0 || strcmp(type, "switch") == 0 ||
+             strcmp(type, "case") == 0 || strcmp(type, "def") == 0 ||
+             strcmp(type, "class") == 0 || strcmp(type, "import") == 0 ||
+             strcmp(type, "from") == 0) {
+    hl_type = HL_KEYWORD1;
+  }
+
+  // Apply highlighting to the range
+  if (hl_type != HL_NORMAL) {
+    for (int i = start_col; i < end_col && i < row->rsize; i++) {
+      row->hl[i] = hl_type;
+    }
+  }
+}
+
+static void ts_traverse_node(erow *row, TSNode n) {
+  TSPoint start = ts_node_start_point(n);
+  TSPoint end = ts_node_end_point(n);
+
+  // Check if node intersects with current row
+  if ((start.row <= (uint32_t)row->idx && end.row >= (uint32_t)row->idx)) {
+    int start_col = (start.row == (uint32_t)row->idx) ? (int)start.column : 0;
+    int end_col = (end.row == (uint32_t)row->idx) ? (int)end.column : row->rsize;
+
+    uint32_t child_count = ts_node_child_count(n);
+    if (child_count == 0) {
+      // Leaf node - apply highlighting
+      ts_highlight_node(row, n, start_col, end_col);
+    } else {
+      // Non-leaf - check if it's a named node type we want to highlight
+      if (ts_node_is_named(n)) {
+        const char *type = ts_node_type(n);
+        if (strcmp(type, "comment") == 0 || strcmp(type, "string_literal") == 0 ||
+            strcmp(type, "string") == 0) {
+          // Highlight the entire node even if it has children
+          ts_highlight_node(row, n, start_col, end_col);
+        }
+      }
+
+      // Recurse into children
+      for (uint32_t i = 0; i < child_count; i++) {
+        TSNode child = ts_node_child(n, i);
+        ts_traverse_node(row, child);
+      }
+    }
+  }
+}
+
+int editorUpdateSyntaxTreeSitter(erow *row) {
+  row->hl = realloc(row->hl, row->rsize);
+  memset(row->hl, HL_NORMAL, row->rsize);
+
+  if (E.syntax == NULL || E.syntax->ts_language == NULL || E.ts_tree == NULL)
+    return -1;
+
+  TSNode root_node = ts_tree_root_node(E.ts_tree);
+
+  // Create a point for the start of this row
+  TSPoint start_point = {.row = row->idx, .column = 0};
+  TSPoint end_point = {.row = row->idx, .column = row->rsize};
+
+  // Find nodes that intersect with this row
+  TSNode node = ts_node_descendant_for_point_range(root_node, start_point, end_point);
+
+  ts_traverse_node(row, node);
+
+  return 0;
 }
 
 int editorUpdateSyntax(erow *row) {
@@ -425,6 +531,40 @@ int editorSyntaxToColor(int hl) {
   }
 }
 
+void editorReparseTreeSitter() {
+  if (E.syntax == NULL || E.syntax->ts_language == NULL)
+    return;
+
+  // Build source string from all rows
+  int buflen;
+  char *source = editorRowsToString(&buflen);
+  if (!source)
+    return;
+
+  // Create parser if needed
+  if (E.ts_parser == NULL) {
+    E.ts_parser = ts_parser_new();
+    if (!E.ts_parser) {
+      free(source);
+      return;
+    }
+    ts_parser_set_language(E.ts_parser, E.syntax->ts_language());
+  }
+
+  // Delete old tree and parse new one
+  if (E.ts_tree) {
+    ts_tree_delete(E.ts_tree);
+  }
+  E.ts_tree = ts_parser_parse_string(E.ts_parser, NULL, source, buflen);
+
+  free(source);
+
+  // Re-highlight all rows
+  for (int i = 0; i < E.numrows; i++) {
+    editorUpdateSyntaxTreeSitter(&E.row[i]);
+  }
+}
+
 void editorSelectSyntaxHighlight() {
   E.syntax = NULL;
   if (E.filename == NULL)
@@ -441,15 +581,22 @@ void editorSelectSyntaxHighlight() {
           (!is_ext && strstr(E.filename, s->filematch[i]))) {
         E.syntax = s;
 
-        int filerow;
-        int hl_counts = 0;
-        int lines = 0;
-        for (filerow = 0; filerow < E.numrows; filerow++) {
-          int hl_count = editorUpdateSyntax(&E.row[filerow]);
-          hl_counts += hl_count;
-          lines++;
+        // If tree-sitter is available, use it
+        if (E.syntax->ts_language) {
+          editorReparseTreeSitter();
+          editorSetStatusMessage("Tree-sitter highlighting enabled for %s", s->filetype);
+        } else {
+          // Fall back to regex highlighting
+          int filerow;
+          int hl_counts = 0;
+          int lines = 0;
+          for (filerow = 0; filerow < E.numrows; filerow++) {
+            int hl_count = editorUpdateSyntax(&E.row[filerow]);
+            hl_counts += hl_count;
+            lines++;
+          }
+          editorSetStatusMessage("hl_counts = %d, lines = %d", hl_counts, lines);
         }
-        editorSetStatusMessage("hl_counts = %d, lines = %d", hl_counts, lines);
         return;
       }
       i++;
@@ -505,7 +652,12 @@ void editorUpdateRow(erow *row) {
   row->render[idx] = '\0';
   row->rsize = idx;
 
-  editorUpdateSyntax(row);
+  // Use tree-sitter highlighting if available, fall back to regex
+  if (E.syntax && E.syntax->ts_language && E.ts_tree) {
+    editorUpdateSyntaxTreeSitter(row);
+  } else {
+    editorUpdateSyntax(row);
+  }
 }
 
 void editorInsertRow(int at, char *s, size_t len) {
@@ -560,6 +712,9 @@ void editorRowInsertChar(erow *row, int at, int c) {
   row->chars[at] = c;
   editorUpdateRow(row);
   E.dirty++;
+  if (E.syntax && E.syntax->ts_language) {
+    editorReparseTreeSitter();
+  }
 }
 
 void editorRowAppendString(erow *row, char *s, size_t len) {
@@ -569,6 +724,9 @@ void editorRowAppendString(erow *row, char *s, size_t len) {
   row->chars[row->size] = '\0';
   editorUpdateRow(row);
   E.dirty++;
+  if (E.syntax && E.syntax->ts_language) {
+    editorReparseTreeSitter();
+  }
 }
 
 void editorRowDelChar(erow *row, int at) {
@@ -578,6 +736,9 @@ void editorRowDelChar(erow *row, int at) {
   row->size--;
   editorUpdateRow(row);
   E.dirty++;
+  if (E.syntax && E.syntax->ts_language) {
+    editorReparseTreeSitter();
+  }
 }
 
 /*** editor operations ***/
@@ -603,6 +764,9 @@ void editorInsertNewLine(void) {
   }
   E.cy++;
   E.cx = 0;
+  if (E.syntax && E.syntax->ts_language) {
+    editorReparseTreeSitter();
+  }
 }
 
 void editorDelChar(void) {
@@ -1115,6 +1279,9 @@ void initEditor(void) {
   E.filename = NULL;
   E.statusmsg[0] = '\0';
   E.statusmsg_time = 0;
+  E.syntax = NULL;
+  E.ts_parser = NULL;
+  E.ts_tree = NULL;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1)
     die("getWindowSize");

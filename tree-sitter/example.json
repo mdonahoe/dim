@@ -1,0 +1,589 @@
+{
+  "type": "translation_unit",
+  "start": {"row": 1, "column": 0},
+  "end": {"row": 20, "column": 0},
+  "startByte": 1,
+  "endByte": 373,
+  "isNamed": true,
+  "children": [
+  {
+    "type": "comment",
+    "start": {"row": 1, "column": 0},
+    "end": {"row": 1, "column": 65},
+    "startByte": 1,
+    "endByte": 66,
+    "isNamed": true,
+    "text": "// This is a simple example demonstrating tree-sitter's basic API"
+  },
+  {
+    "type": "comment",
+    "start": {"row": 2, "column": 0},
+    "end": {"row": 2, "column": 62},
+    "startByte": 67,
+    "endByte": 129,
+    "isNamed": true,
+    "text": "// Note: This requires a language grammar to parse actual code"
+  },
+  {
+    "type": "comment",
+    "start": {"row": 3, "column": 0},
+    "end": {"row": 3, "column": 82},
+    "startByte": 130,
+    "endByte": 212,
+    "isNamed": true,
+    "text": "// For a working example, you need to link against a grammar like tree-sitter-json"
+  },
+  {
+    "type": "preproc_include",
+    "start": {"row": 5, "column": 0},
+    "end": {"row": 6, "column": 0},
+    "startByte": 214,
+    "endByte": 233,
+    "isNamed": true,
+    "children": [
+    {
+      "type": "#include",
+      "start": {"row": 5, "column": 0},
+      "end": {"row": 5, "column": 8},
+      "startByte": 214,
+      "endByte": 222,
+      "isNamed": false,
+      "text": "#include"
+    },
+    {
+      "type": "system_lib_string",
+      "start": {"row": 5, "column": 9},
+      "end": {"row": 5, "column": 18},
+      "startByte": 223,
+      "endByte": 232,
+      "isNamed": true,
+      "text": "<stdio.h>"
+    }
+    ]
+  },
+  {
+    "type": "preproc_include",
+    "start": {"row": 6, "column": 0},
+    "end": {"row": 7, "column": 0},
+    "startByte": 233,
+    "endByte": 253,
+    "isNamed": true,
+    "children": [
+    {
+      "type": "#include",
+      "start": {"row": 6, "column": 0},
+      "end": {"row": 6, "column": 8},
+      "startByte": 233,
+      "endByte": 241,
+      "isNamed": false,
+      "text": "#include"
+    },
+    {
+      "type": "system_lib_string",
+      "start": {"row": 6, "column": 9},
+      "end": {"row": 6, "column": 19},
+      "startByte": 242,
+      "endByte": 252,
+      "isNamed": true,
+      "text": "<string.h>"
+    }
+    ]
+  },
+  {
+    "type": "preproc_include",
+    "start": {"row": 8, "column": 0},
+    "end": {"row": 9, "column": 0},
+    "startByte": 254,
+    "endByte": 277,
+    "isNamed": true,
+    "children": [
+    {
+      "type": "#include",
+      "start": {"row": 8, "column": 0},
+      "end": {"row": 8, "column": 8},
+      "startByte": 254,
+      "endByte": 262,
+      "isNamed": false,
+      "text": "#include"
+    },
+    {
+      "type": "string_literal",
+      "start": {"row": 8, "column": 9},
+      "end": {"row": 8, "column": 22},
+      "startByte": 263,
+      "endByte": 276,
+      "isNamed": true,
+      "children": [
+      {
+        "type": "\"",
+        "start": {"row": 8, "column": 9},
+        "end": {"row": 8, "column": 10},
+        "startByte": 263,
+        "endByte": 264,
+        "isNamed": false,
+        "text": "\""
+      },
+      {
+        "type": "string_content",
+        "start": {"row": 8, "column": 10},
+        "end": {"row": 8, "column": 21},
+        "startByte": 264,
+        "endByte": 275,
+        "isNamed": true,
+        "text": "something.h"
+      },
+      {
+        "type": "\"",
+        "start": {"row": 8, "column": 21},
+        "end": {"row": 8, "column": 22},
+        "startByte": 275,
+        "endByte": 276,
+        "isNamed": false,
+        "text": "\""
+      }
+      ]
+    }
+    ]
+  },
+  {
+    "type": "function_definition",
+    "start": {"row": 10, "column": 0},
+    "end": {"row": 13, "column": 1},
+    "startByte": 278,
+    "endByte": 315,
+    "isNamed": true,
+    "children": [
+    {
+      "type": "primitive_type",
+      "start": {"row": 10, "column": 0},
+      "end": {"row": 10, "column": 4},
+      "startByte": 278,
+      "endByte": 282,
+      "isNamed": true,
+      "text": "char"
+    },
+    {
+      "type": "pointer_declarator",
+      "start": {"row": 10, "column": 4},
+      "end": {"row": 10, "column": 11},
+      "startByte": 282,
+      "endByte": 289,
+      "isNamed": true,
+      "children": [
+      {
+        "type": "*",
+        "start": {"row": 10, "column": 4},
+        "end": {"row": 10, "column": 5},
+        "startByte": 282,
+        "endByte": 283,
+        "isNamed": false,
+        "text": "*"
+      },
+      {
+        "type": "function_declarator",
+        "start": {"row": 10, "column": 6},
+        "end": {"row": 10, "column": 11},
+        "startByte": 284,
+        "endByte": 289,
+        "isNamed": true,
+        "children": [
+        {
+          "type": "identifier",
+          "start": {"row": 10, "column": 6},
+          "end": {"row": 10, "column": 9},
+          "startByte": 284,
+          "endByte": 287,
+          "isNamed": true,
+          "text": "foo"
+        },
+        {
+          "type": "parameter_list",
+          "start": {"row": 10, "column": 9},
+          "end": {"row": 10, "column": 11},
+          "startByte": 287,
+          "endByte": 289,
+          "isNamed": true,
+          "children": [
+          {
+            "type": "(",
+            "start": {"row": 10, "column": 9},
+            "end": {"row": 10, "column": 10},
+            "startByte": 287,
+            "endByte": 288,
+            "isNamed": false,
+            "text": "("
+          },
+          {
+            "type": ")",
+            "start": {"row": 10, "column": 10},
+            "end": {"row": 10, "column": 11},
+            "startByte": 288,
+            "endByte": 289,
+            "isNamed": false,
+            "text": ")"
+          }
+          ]
+        }
+        ]
+      }
+      ]
+    },
+    {
+      "type": "compound_statement",
+      "start": {"row": 11, "column": 0},
+      "end": {"row": 13, "column": 1},
+      "startByte": 290,
+      "endByte": 315,
+      "isNamed": true,
+      "children": [
+      {
+        "type": "{",
+        "start": {"row": 11, "column": 0},
+        "end": {"row": 11, "column": 1},
+        "startByte": 290,
+        "endByte": 291,
+        "isNamed": false,
+        "text": "{"
+      },
+      {
+        "type": "return_statement",
+        "start": {"row": 12, "column": 0},
+        "end": {"row": 12, "column": 21},
+        "startByte": 292,
+        "endByte": 313,
+        "isNamed": true,
+        "children": [
+        {
+          "type": "return",
+          "start": {"row": 12, "column": 0},
+          "end": {"row": 12, "column": 6},
+          "startByte": 292,
+          "endByte": 298,
+          "isNamed": false,
+          "text": "return"
+        },
+        {
+          "type": "string_literal",
+          "start": {"row": 12, "column": 7},
+          "end": {"row": 12, "column": 20},
+          "startByte": 299,
+          "endByte": 312,
+          "isNamed": true,
+          "children": [
+          {
+            "type": "\"",
+            "start": {"row": 12, "column": 7},
+            "end": {"row": 12, "column": 8},
+            "startByte": 299,
+            "endByte": 300,
+            "isNamed": false,
+            "text": "\""
+          },
+          {
+            "type": "string_content",
+            "start": {"row": 12, "column": 8},
+            "end": {"row": 12, "column": 19},
+            "startByte": 300,
+            "endByte": 311,
+            "isNamed": true,
+            "text": "hello world"
+          },
+          {
+            "type": "\"",
+            "start": {"row": 12, "column": 19},
+            "end": {"row": 12, "column": 20},
+            "startByte": 311,
+            "endByte": 312,
+            "isNamed": false,
+            "text": "\""
+          }
+          ]
+        },
+        {
+          "type": ";",
+          "start": {"row": 12, "column": 20},
+          "end": {"row": 12, "column": 21},
+          "startByte": 312,
+          "endByte": 313,
+          "isNamed": false,
+          "text": ";"
+        }
+        ]
+      },
+      {
+        "type": "}",
+        "start": {"row": 13, "column": 0},
+        "end": {"row": 13, "column": 1},
+        "startByte": 314,
+        "endByte": 315,
+        "isNamed": false,
+        "text": "}"
+      }
+      ]
+    }
+    ]
+  },
+  {
+    "type": "expression_statement",
+    "start": {"row": 13, "column": 1},
+    "end": {"row": 13, "column": 2},
+    "startByte": 315,
+    "endByte": 316,
+    "isNamed": true,
+    "children": [
+    {
+      "type": ";",
+      "start": {"row": 13, "column": 1},
+      "end": {"row": 13, "column": 2},
+      "startByte": 315,
+      "endByte": 316,
+      "isNamed": false,
+      "text": ";"
+    }
+    ]
+  },
+  {
+    "type": "function_definition",
+    "start": {"row": 15, "column": 0},
+    "end": {"row": 19, "column": 1},
+    "startByte": 318,
+    "endByte": 372,
+    "isNamed": true,
+    "children": [
+    {
+      "type": "primitive_type",
+      "start": {"row": 15, "column": 0},
+      "end": {"row": 15, "column": 3},
+      "startByte": 318,
+      "endByte": 321,
+      "isNamed": true,
+      "text": "int"
+    },
+    {
+      "type": "function_declarator",
+      "start": {"row": 15, "column": 4},
+      "end": {"row": 15, "column": 10},
+      "startByte": 322,
+      "endByte": 328,
+      "isNamed": true,
+      "children": [
+      {
+        "type": "identifier",
+        "start": {"row": 15, "column": 4},
+        "end": {"row": 15, "column": 8},
+        "startByte": 322,
+        "endByte": 326,
+        "isNamed": true,
+        "text": "main"
+      },
+      {
+        "type": "parameter_list",
+        "start": {"row": 15, "column": 8},
+        "end": {"row": 15, "column": 10},
+        "startByte": 326,
+        "endByte": 328,
+        "isNamed": true,
+        "children": [
+        {
+          "type": "(",
+          "start": {"row": 15, "column": 8},
+          "end": {"row": 15, "column": 9},
+          "startByte": 326,
+          "endByte": 327,
+          "isNamed": false,
+          "text": "("
+        },
+        {
+          "type": ")",
+          "start": {"row": 15, "column": 9},
+          "end": {"row": 15, "column": 10},
+          "startByte": 327,
+          "endByte": 328,
+          "isNamed": false,
+          "text": ")"
+        }
+        ]
+      }
+      ]
+    },
+    {
+      "type": "compound_statement",
+      "start": {"row": 15, "column": 11},
+      "end": {"row": 19, "column": 1},
+      "startByte": 329,
+      "endByte": 372,
+      "isNamed": true,
+      "children": [
+      {
+        "type": "{",
+        "start": {"row": 15, "column": 11},
+        "end": {"row": 15, "column": 12},
+        "startByte": 329,
+        "endByte": 330,
+        "isNamed": false,
+        "text": "{"
+      },
+      {
+        "type": "expression_statement",
+        "start": {"row": 16, "column": 4},
+        "end": {"row": 16, "column": 24},
+        "startByte": 335,
+        "endByte": 355,
+        "isNamed": true,
+        "children": [
+        {
+          "type": "call_expression",
+          "start": {"row": 16, "column": 4},
+          "end": {"row": 16, "column": 23},
+          "startByte": 335,
+          "endByte": 354,
+          "isNamed": true,
+          "children": [
+          {
+            "type": "identifier",
+            "start": {"row": 16, "column": 4},
+            "end": {"row": 16, "column": 10},
+            "startByte": 335,
+            "endByte": 341,
+            "isNamed": true,
+            "text": "printf"
+          },
+          {
+            "type": "argument_list",
+            "start": {"row": 16, "column": 10},
+            "end": {"row": 16, "column": 23},
+            "startByte": 341,
+            "endByte": 354,
+            "isNamed": true,
+            "children": [
+            {
+              "type": "(",
+              "start": {"row": 16, "column": 10},
+              "end": {"row": 16, "column": 11},
+              "startByte": 341,
+              "endByte": 342,
+              "isNamed": false,
+              "text": "("
+            },
+            {
+              "type": "string_literal",
+              "start": {"row": 16, "column": 11},
+              "end": {"row": 16, "column": 22},
+              "startByte": 342,
+              "endByte": 353,
+              "isNamed": true,
+              "children": [
+              {
+                "type": "\"",
+                "start": {"row": 16, "column": 11},
+                "end": {"row": 16, "column": 12},
+                "startByte": 342,
+                "endByte": 343,
+                "isNamed": false,
+                "text": "\""
+              },
+              {
+                "type": "string_content",
+                "start": {"row": 16, "column": 12},
+                "end": {"row": 16, "column": 19},
+                "startByte": 343,
+                "endByte": 350,
+                "isNamed": true,
+                "text": "example"
+              },
+              {
+                "type": "escape_sequence",
+                "start": {"row": 16, "column": 19},
+                "end": {"row": 16, "column": 21},
+                "startByte": 350,
+                "endByte": 352,
+                "isNamed": true,
+                "text": "\\n"
+              },
+              {
+                "type": "\"",
+                "start": {"row": 16, "column": 21},
+                "end": {"row": 16, "column": 22},
+                "startByte": 352,
+                "endByte": 353,
+                "isNamed": false,
+                "text": "\""
+              }
+              ]
+            },
+            {
+              "type": ")",
+              "start": {"row": 16, "column": 22},
+              "end": {"row": 16, "column": 23},
+              "startByte": 353,
+              "endByte": 354,
+              "isNamed": false,
+              "text": ")"
+            }
+            ]
+          }
+          ]
+        },
+        {
+          "type": ";",
+          "start": {"row": 16, "column": 23},
+          "end": {"row": 16, "column": 24},
+          "startByte": 354,
+          "endByte": 355,
+          "isNamed": false,
+          "text": ";"
+        }
+        ]
+      },
+      {
+        "type": "return_statement",
+        "start": {"row": 18, "column": 4},
+        "end": {"row": 18, "column": 13},
+        "startByte": 361,
+        "endByte": 370,
+        "isNamed": true,
+        "children": [
+        {
+          "type": "return",
+          "start": {"row": 18, "column": 4},
+          "end": {"row": 18, "column": 10},
+          "startByte": 361,
+          "endByte": 367,
+          "isNamed": false,
+          "text": "return"
+        },
+        {
+          "type": "number_literal",
+          "start": {"row": 18, "column": 11},
+          "end": {"row": 18, "column": 12},
+          "startByte": 368,
+          "endByte": 369,
+          "isNamed": true,
+          "text": "0"
+        },
+        {
+          "type": ";",
+          "start": {"row": 18, "column": 12},
+          "end": {"row": 18, "column": 13},
+          "startByte": 369,
+          "endByte": 370,
+          "isNamed": false,
+          "text": ";"
+        }
+        ]
+      },
+      {
+        "type": "}",
+        "start": {"row": 19, "column": 0},
+        "end": {"row": 19, "column": 1},
+        "startByte": 371,
+        "endByte": 372,
+        "isNamed": false,
+        "text": "}"
+      }
+      ]
+    }
+    ]
+  }
+  ]
+}
