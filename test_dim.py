@@ -24,8 +24,8 @@ class TestDimQuit(unittest.TestCase):
         result = run_with_pty(
             command=["./dim"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -50,8 +50,8 @@ class TestDimQuit(unittest.TestCase):
         result = run_with_pty(
             command=["./dim"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -63,14 +63,14 @@ class TestDimQuit(unittest.TestCase):
     def test_quit_immediately_without_changes(self):
         """Test that ctrl-q quits immediately when there are no unsaved changes."""
         # Open an existing file and quit immediately without making changes
-        input_str = "[sleep:300][ctrl-q]"
+        input_str = "[sleep:50][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim", "example.py"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -96,8 +96,8 @@ class TestDimQuit(unittest.TestCase):
         result = run_with_pty(
             command=["./dim"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -120,8 +120,8 @@ class TestDimSave(unittest.TestCase):
         result = run_with_pty(
             command=["./dim"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -140,14 +140,14 @@ class TestDimSave(unittest.TestCase):
     def test_save_new_file_creates_file(self):
         """Test that saving a new file with Ctrl-S creates the file on disk."""
         # Type content, save as test_new_file.txt, then quit
-        input_str = "New file content[ctrl-s]test_new_file.txt[enter][sleep:100][ctrl-q]"
+        input_str = "New file content[ctrl-s]test_new_file.txt[enter][sleep:20][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -177,14 +177,14 @@ class TestDimFileOperations(unittest.TestCase):
     def test_open_file_and_view_contents(self):
         """Test that dim can open a file and display its contents."""
         # Open hello_world.txt and wait briefly to let it render
-        input_str = "[sleep:300][ctrl-q]"
+        input_str = "[sleep:50][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim", "hello_world.txt"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -200,14 +200,14 @@ class TestDimFileOperations(unittest.TestCase):
 
     def test_open_new_file_shows_no_name(self):
         """Test that opening dim without a file shows '[No Name]' in status bar."""
-        input_str = "[sleep:300][ctrl-q]"
+        input_str = "[sleep:50][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -219,14 +219,14 @@ class TestDimFileOperations(unittest.TestCase):
     def test_open_readme_and_view_first_line(self):
         """Test that dim can open README.md and display its first line."""
         # Open README.md and wait briefly to let it render
-        input_str = "[sleep:300][ctrl-q]"
+        input_str = "[sleep:50][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim", "README.md"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -246,14 +246,14 @@ class TestDimStatusBar(unittest.TestCase):
     def test_status_bar_shows_filename_and_lines(self):
         """Test that the status bar displays filename, line count, and filetype."""
         # Open hello_world.txt
-        input_str = "[sleep:300][ctrl-q]"
+        input_str = "[sleep:50][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim", "hello_world.txt"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -270,14 +270,14 @@ class TestDimStatusBar(unittest.TestCase):
 
     def test_status_bar_shows_python_filetype(self):
         """Test that the status bar shows 'python' filetype for .py files."""
-        input_str = "[sleep:300][ctrl-q]"
+        input_str = "[sleep:50][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim", "example.py"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -289,14 +289,14 @@ class TestDimStatusBar(unittest.TestCase):
     def test_modified_indicator_in_status_bar(self):
         """Test that the status bar shows '(modified)' when file is edited."""
         # Open file, make a change, check for (modified) indicator
-        input_str = "[sleep:200]x[sleep:100][ctrl-q]"
+        input_str = "[sleep:50]x[sleep:20][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim", "hello_world.txt"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -315,14 +315,14 @@ class TestDimSyntaxHighlighting(unittest.TestCase):
     def test_syntax_highlighting_python(self):
         """Test that Python syntax highlighting works for keywords, strings, and comments."""
         # Open example.py and wait for it to render
-        input_str = "[sleep:300][ctrl-q]"
+        input_str = "[sleep:50][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim", "example.py"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -359,14 +359,14 @@ class TestDimSyntaxHighlighting(unittest.TestCase):
     def test_syntax_highlighting_c(self):
         """Test that C syntax highlighting works with color codes."""
         # Open example.c and wait for it to render
-        input_str = "[sleep:300][ctrl-q]"
+        input_str = "[sleep:50][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim", "example.c"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )
@@ -419,14 +419,14 @@ class TestDimNavigation(unittest.TestCase):
         """Test that arrow keys navigate through the file."""
         # Open hello_world.txt, press down arrow 3 times, then quit
         # This should move cursor to line 4
-        input_str = "[sleep:200][down][down][down][sleep:100][ctrl-q]"
+        input_str = "[sleep:50][down][down][down][sleep:20][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
             command=["./dim", "hello_world.txt"],
             input_tokens=input_tokens,
-            delay_ms=50,
-            timeout=2.0,
+            delay_ms=10,
+            timeout=0.5,
             rows=24,
             cols=80
         )

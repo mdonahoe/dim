@@ -316,7 +316,7 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
             fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
             # Give the program a moment to start
-            time.sleep(0.1)
+            time.sleep(0.02)
 
             # Read initial output
             try:
@@ -354,7 +354,7 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
                         pass
 
             # Wait a bit for final output
-            time.sleep(0.2)
+            time.sleep(0.05)
 
             # Read remaining output
             start_time = time.time()
