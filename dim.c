@@ -1,6 +1,5 @@
 /*** includes ***/
 
-#define _DEFAULT_SOURCE
 #define _BSD_SOURCE
 #define _GNU_SOURCE
 
@@ -153,8 +152,8 @@ char *editorRowsToString(int *buflen);
 /*** terminal ***/
 
 void clearScreen(void) {
-  write(STDOUT_FILENO, "\x1b[2J", 4);
-  write(STDOUT_FILENO, "\x1b[H", 3);
+  (void)write(STDOUT_FILENO, "\x1b[2J", 4);
+  (void)write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
 void die(const char *s) {
@@ -1100,7 +1099,7 @@ void editorRefreshScreen(void) {
            (E.rx - E.coloff) + 1);
   abAppend(&ab, buf, strlen(buf));
   abAppend(&ab, "\x1b[?25h", 6);
-  write(STDOUT_FILENO, ab.b, ab.len);
+  (void)write(STDOUT_FILENO, ab.b, ab.len);
   abFree(&ab);
 }
 
