@@ -1225,10 +1225,10 @@ void editorDrawRows(struct abuf *ab) {
 void editorDrawStatusBar(struct abuf *ab) {
   abAppend(ab, "\x1b[7m", 4);
   char status[80], rstatus[80];
-  int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
+  int len = snprintf(status, sizeof(status), "%.20s - %d lines %s -- %s",
                      E.filename ? E.filename : "[No Name]", E.numrows,
-                     E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT");
-  // E.dirty ? "(modified)" : "");
+                     E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT",
+  					 E.dirty ? "(modified)" : "");
   int rlen =
       snprintf(rstatus, sizeof(status), "%s | %d/%d",
                E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);

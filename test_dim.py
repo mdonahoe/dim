@@ -18,7 +18,7 @@ class TestDimQuit(unittest.TestCase):
     def test_cannot_quit_with_unsaved_changes(self):
         """Test that ctrl-q doesn't immediately quit when there are unsaved changes."""
         # Create a new file with some content, then try to quit without saving
-        input_str = "Hello, World![ctrl-q]"
+        input_str = "iHello, World![ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -44,7 +44,7 @@ class TestDimQuit(unittest.TestCase):
     def test_quit_after_multiple_ctrl_q(self):
         """Test that pressing ctrl-q 4 times will quit even with unsaved changes."""
         # Create content and press ctrl-q 4 times (3 warnings + 1 to actually quit)
-        input_str = "Some content[ctrl-q][ctrl-q][ctrl-q][ctrl-q]"
+        input_str = "iSome content[ctrl-q][ctrl-q][ctrl-q][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -61,9 +61,9 @@ class TestDimQuit(unittest.TestCase):
         self.assertEqual(result.exit_code, 0, f"Editor should exit with code 0, got {result.exit_code}")
 
     def test_quit_immediately_without_changes(self):
-        """Test that ctrl-q quits immediately when there are no unsaved changes."""
+        """Test that :q quits immediately when there are no unsaved changes."""
         # Open an existing file and quit immediately without making changes
-        input_str = "[sleep:50][ctrl-q]"
+        input_str = "[sleep:50]:q[enter]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -90,7 +90,7 @@ class TestDimQuit(unittest.TestCase):
     def test_warning_countdown(self):
         """Test that the warning shows the correct countdown (3, 2, 1)."""
         # Press ctrl-q once and check the countdown
-        input_str = "Content[ctrl-q]"
+        input_str = "iContent[ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -114,7 +114,7 @@ class TestDimSave(unittest.TestCase):
     def test_save_then_quit(self):
         """Test that saving changes allows immediate quit."""
         # Create a test file, make changes, save, then quit
-        input_str = "Test content[ctrl-s]test_output.txt[enter][ctrl-q]"
+        input_str = "iTest content[ctrl-s]test_output.txt[enter][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -140,7 +140,7 @@ class TestDimSave(unittest.TestCase):
     def test_save_new_file_creates_file(self):
         """Test that saving a new file with Ctrl-S creates the file on disk."""
         # Type content, save as test_new_file.txt, then quit
-        input_str = "New file content[ctrl-s]test_new_file.txt[enter][sleep:20][ctrl-q]"
+        input_str = "iNew file content[ctrl-s]test_new_file.txt[enter][sleep:20][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -177,7 +177,7 @@ class TestDimFileOperations(unittest.TestCase):
     def test_open_file_and_view_contents(self):
         """Test that dim can open a file and display its contents."""
         # Open hello_world.txt and wait briefly to let it render
-        input_str = "[sleep:50][ctrl-q]"
+        input_str = "[sleep:50]i[ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -200,7 +200,7 @@ class TestDimFileOperations(unittest.TestCase):
 
     def test_open_new_file_shows_no_name(self):
         """Test that opening dim without a file shows '[No Name]' in status bar."""
-        input_str = "[sleep:50][ctrl-q]"
+        input_str = "[sleep:50]i[ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -219,7 +219,7 @@ class TestDimFileOperations(unittest.TestCase):
     def test_open_readme_and_view_first_line(self):
         """Test that dim can open README.md and display its first line."""
         # Open README.md and wait briefly to let it render
-        input_str = "[sleep:50][ctrl-q]"
+        input_str = "[sleep:50]i[ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -246,7 +246,7 @@ class TestDimStatusBar(unittest.TestCase):
     def test_status_bar_shows_filename_and_lines(self):
         """Test that the status bar displays filename, line count, and filetype."""
         # Open hello_world.txt
-        input_str = "[sleep:50][ctrl-q]"
+        input_str = "[sleep:50]i[ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -270,7 +270,7 @@ class TestDimStatusBar(unittest.TestCase):
 
     def test_status_bar_shows_python_filetype(self):
         """Test that the status bar shows 'python' filetype for .py files."""
-        input_str = "[sleep:50][ctrl-q]"
+        input_str = "[sleep:50]i[ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -289,7 +289,7 @@ class TestDimStatusBar(unittest.TestCase):
     def test_modified_indicator_in_status_bar(self):
         """Test that the status bar shows '(modified)' when file is edited."""
         # Open file, make a change, check for (modified) indicator
-        input_str = "[sleep:50]x[sleep:20][ctrl-q]"
+        input_str = "[sleep:50]ix[sleep:20][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -315,7 +315,7 @@ class TestDimSyntaxHighlighting(unittest.TestCase):
     def test_syntax_highlighting_python(self):
         """Test that Python syntax highlighting works for keywords, strings, and comments."""
         # Open example.py and wait for it to render
-        input_str = "[sleep:50][ctrl-q]"
+        input_str = "[sleep:50]i[ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -359,7 +359,7 @@ class TestDimSyntaxHighlighting(unittest.TestCase):
     def test_syntax_highlighting_c(self):
         """Test that C syntax highlighting works with color codes."""
         # Open example.c and wait for it to render
-        input_str = "[sleep:50][ctrl-q]"
+        input_str = "[sleep:50]i[ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -419,7 +419,7 @@ class TestDimNavigation(unittest.TestCase):
         """Test that arrow keys navigate through the file."""
         # Open hello_world.txt, press down arrow 3 times, then quit
         # This should move cursor to line 4
-        input_str = "[sleep:50][down][down][down][sleep:20][ctrl-q]"
+        input_str = "[sleep:50]i[down][down][down][sleep:20][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
