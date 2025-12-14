@@ -14,9 +14,8 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <time.h>
-#include <unistd.h>
 #include <tree_sitter/api.h>
-
+#include <unistd.h>
 
 TSLanguage *tree_sitter_c(void);
 TSLanguage *tree_sitter_python(void);
@@ -26,7 +25,7 @@ TSLanguage *tree_sitter_python(void);
 #define DIM_VERSION "0.0.1"
 #define DIM_TAB_STOP 4
 #define DIM_QUIT_TIMES 3
-#define CTRL_KEY(k) ((k)&0x1f)
+#define CTRL_KEY(k) ((k) & 0x1f)
 #define DIM_NORMAL_MODE 1
 #define DIM_INSERT_MODE 2
 
@@ -118,33 +117,34 @@ char *C_HL_keywords[] = {
 
 char *PY_HL_extensions[] = {".py", NULL};
 char *PY_HL_keywords[] = {
-    "and",      "as",       "assert",   "async",    "await",    "break",
-    "class",    "continue", "def",      "del",      "elif",     "else",
-    "except",   "finally",  "for",      "from",     "global",   "if",
-    "import",   "in",       "is",       "lambda",   "nonlocal", "not",
-    "or",       "pass",     "raise",    "return",   "try",      "while",
-    "with",     "yield",    "True",     "False",    "None",     "int|",
-    "float|",   "str|",     "bool|",    "list|",    "dict|",    "tuple|",
-    "set|",     "frozenset|", "bytes|", "bytearray|", "range|", "object|",
-    "type|",    "len|",     "print|",   "input|",   "open|",    NULL};
+    "and",    "as",         "assert", "async",      "await",    "break",
+    "class",  "continue",   "def",    "del",        "elif",     "else",
+    "except", "finally",    "for",    "from",       "global",   "if",
+    "import", "in",         "is",     "lambda",     "nonlocal", "not",
+    "or",     "pass",       "raise",  "return",     "try",      "while",
+    "with",   "yield",      "True",   "False",      "None",     "int|",
+    "float|", "str|",       "bool|",  "list|",      "dict|",    "tuple|",
+    "set|",   "frozenset|", "bytes|", "bytearray|", "range|",   "object|",
+    "type|",  "len|",       "print|", "input|",     "open|",    NULL};
 
 struct editorSyntax HLDB[] = {
-    {"c",             // lang
-     C_HL_extensions, // filetypes
-     C_HL_keywords,   // keywords
-     "//",            // line comment start sequence
-     "/*",            // multi-line start
-     "*/",            // multi-line end
+    {"c",                                         // lang
+     C_HL_extensions,                             // filetypes
+     C_HL_keywords,                               // keywords
+     "//",                                        // line comment start sequence
+     "/*",                                        // multi-line start
+     "*/",                                        // multi-line end
      HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS, // flags
-     tree_sitter_c},  // tree-sitter language
-    {"python",        // lang
-     PY_HL_extensions, // filetypes
-     PY_HL_keywords,   // keywords
-     "#",              // line comment start sequence
-     "\"\"\"",             // multi-line start (Python doesn't have traditional multi-line comments)
-     "\"\"\"",             // multi-line end
+     tree_sitter_c},                              // tree-sitter language
+    {"python",                                    // lang
+     PY_HL_extensions,                            // filetypes
+     PY_HL_keywords,                              // keywords
+     "#",                                         // line comment start sequence
+     "\"\"\"", // multi-line start (Python doesn't have traditional multi-line
+               // comments)
+     "\"\"\"", // multi-line end
      HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS, // flags
-     tree_sitter_python}, // tree-sitter language
+     tree_sitter_python},                         // tree-sitter language
 };
 
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
@@ -298,9 +298,11 @@ static void ts_highlight_node(erow *row, TSNode n, int start_col, int end_col) {
   // Map node types to highlight types
   if (strcmp(type, "comment") == 0) {
     hl_type = HL_COMMENT;
-  } else if (strcmp(type, "string_start") == 0 || strcmp(type, "string_end") == 0) {
+  } else if (strcmp(type, "string_start") == 0 ||
+             strcmp(type, "string_end") == 0) {
     // For Python, check if it's a triple-quoted string (docstring)
-    // Triple quotes should be cyan (comment color), single quotes should be magenta (string color)
+    // Triple quotes should be cyan (comment color), single quotes should be
+    // magenta (string color)
     int len = end_col - start_col;
     if (len >= 3) {
       // Triple-quoted string delimiter
@@ -314,8 +316,7 @@ static void ts_highlight_node(erow *row, TSNode n, int start_col, int end_col) {
              strcmp(type, "string_content") == 0) {
     hl_type = HL_STRING;
   } else if (strcmp(type, "number_literal") == 0 ||
-             strcmp(type, "integer") == 0 ||
-             strcmp(type, "float") == 0) {
+             strcmp(type, "integer") == 0 || strcmp(type, "float") == 0) {
     hl_type = HL_NUMBER;
   } else if (strcmp(type, "primitive_type") == 0 ||
              strcmp(type, "type_identifier") == 0 ||
@@ -328,14 +329,13 @@ static void ts_highlight_node(erow *row, TSNode n, int start_col, int end_col) {
              strcmp(type, "continue") == 0 || strcmp(type, "switch") == 0 ||
              strcmp(type, "case") == 0 || strcmp(type, "def") == 0 ||
              strcmp(type, "class") == 0 || strcmp(type, "import") == 0 ||
-             strcmp(type, "from") == 0 ||
-             strcmp(type, "struct") == 0 || strcmp(type, "union") == 0 ||
-             strcmp(type, "enum") == 0 || strcmp(type, "typedef") == 0 ||
-             strcmp(type, "static") == 0 || strcmp(type, "extern") == 0 ||
-             strcmp(type, "const") == 0 || strcmp(type, "volatile") == 0 ||
-             strcmp(type, "#include") == 0 || strcmp(type, "#define") == 0 ||
-             strcmp(type, "#ifdef") == 0 || strcmp(type, "#ifndef") == 0 ||
-             strcmp(type, "#endif") == 0) {
+             strcmp(type, "from") == 0 || strcmp(type, "struct") == 0 ||
+             strcmp(type, "union") == 0 || strcmp(type, "enum") == 0 ||
+             strcmp(type, "typedef") == 0 || strcmp(type, "static") == 0 ||
+             strcmp(type, "extern") == 0 || strcmp(type, "const") == 0 ||
+             strcmp(type, "volatile") == 0 || strcmp(type, "#include") == 0 ||
+             strcmp(type, "#define") == 0 || strcmp(type, "#ifdef") == 0 ||
+             strcmp(type, "#ifndef") == 0 || strcmp(type, "#endif") == 0) {
     hl_type = HL_KEYWORD1;
   }
 
@@ -354,7 +354,8 @@ static void ts_traverse_node(erow *row, TSNode n) {
   // Check if node intersects with current row
   if ((start.row <= (uint32_t)row->idx && end.row >= (uint32_t)row->idx)) {
     int start_col = (start.row == (uint32_t)row->idx) ? (int)start.column : 0;
-    int end_col = (end.row == (uint32_t)row->idx) ? (int)end.column : row->rsize;
+    int end_col =
+        (end.row == (uint32_t)row->idx) ? (int)end.column : row->rsize;
 
     uint32_t child_count = ts_node_child_count(n);
     if (child_count == 0) {
@@ -364,7 +365,8 @@ static void ts_traverse_node(erow *row, TSNode n) {
       // Non-leaf - check if it's a named node type we want to highlight
       if (ts_node_is_named(n)) {
         const char *type = ts_node_type(n);
-        if (strcmp(type, "comment") == 0 || strcmp(type, "string_literal") == 0 ||
+        if (strcmp(type, "comment") == 0 ||
+            strcmp(type, "string_literal") == 0 ||
             strcmp(type, "string") == 0) {
           // Highlight the entire node even if it has children
           ts_highlight_node(row, n, start_col, end_col);
@@ -394,7 +396,8 @@ int editorUpdateSyntaxTreeSitter(erow *row) {
   TSPoint end_point = {.row = row->idx, .column = row->rsize};
 
   // Find nodes that intersect with this row
-  TSNode node = ts_node_descendant_for_point_range(root_node, start_point, end_point);
+  TSNode node =
+      ts_node_descendant_for_point_range(root_node, start_point, end_point);
 
   ts_traverse_node(row, node);
 
@@ -599,7 +602,8 @@ void editorSelectSyntaxHighlight() {
         // If tree-sitter is available, use it
         if (E.syntax->ts_language) {
           editorReparseTreeSitter();
-          editorSetStatusMessage("Tree-sitter highlighting enabled for %s", s->filetype);
+          editorSetStatusMessage("Tree-sitter highlighting enabled for %s",
+                                 s->filetype);
         } else {
           // Fall back to regex highlighting
           int filerow;
@@ -610,7 +614,8 @@ void editorSelectSyntaxHighlight() {
             hl_counts += hl_count;
             lines++;
           }
-          editorSetStatusMessage("hl_counts = %d, lines = %d", hl_counts, lines);
+          editorSetStatusMessage("hl_counts = %d, lines = %d", hl_counts,
+                                 lines);
         }
         return;
       }
@@ -766,43 +771,48 @@ void editorInsertChar(int c) {
   E.cx++;
 }
 
-
 enum { CLASS_WHITESPACE, CLASS_PUNCTUATION, CLASS_WORD };
 
 int get_char_class(int c) {
-    if (isspace(c) || c == '\0') return CLASS_WHITESPACE;
-    if (isalnum(c) || c == '_') return CLASS_WORD;
-    return CLASS_PUNCTUATION;
+  if (isspace(c) || c == '\0')
+    return CLASS_WHITESPACE;
+  if (isalnum(c) || c == '_')
+    return CLASS_WORD;
+  return CLASS_PUNCTUATION;
 }
 
 void editorMoveWordForward() {
-    erow *row = &E.row[E.cy];
-    if (E.cx >= row->size) return; // Already at end of line
+  erow *row = &E.row[E.cy];
+  if (E.cx >= row->size)
+    return; // Already at end of line
 
-    int start_class = get_char_class(row->chars[E.cx]);
+  int start_class = get_char_class(row->chars[E.cx]);
 
-    // 1. Move past characters of the same class
-    while (E.cx < row->size && get_char_class(row->chars[E.cx]) == start_class) {
-        E.cx++;
-    }
+  // 1. Move past characters of the same class
+  while (E.cx < row->size && get_char_class(row->chars[E.cx]) == start_class) {
+    E.cx++;
+  }
 
-    // 2. If we landed on whitespace, skip it to find the start of the next word
-    if (E.cx < row->size && get_char_class(row->chars[E.cx]) == CLASS_WHITESPACE) {
-        while (E.cx < row->size && get_char_class(row->chars[E.cx]) == CLASS_WHITESPACE) {
-            E.cx++;
-        }
+  // 2. If we landed on whitespace, skip it to find the start of the next word
+  if (E.cx < row->size &&
+      get_char_class(row->chars[E.cx]) == CLASS_WHITESPACE) {
+    while (E.cx < row->size &&
+           get_char_class(row->chars[E.cx]) == CLASS_WHITESPACE) {
+      E.cx++;
     }
-    
-    // 3. Optional: If end of line is reached, move to the first char of the next row
-    if (E.cx >= row->size && E.cy < E.numrows - 1) {
-        E.cy++;
-        E.cx = 0;
-        // Skip leading whitespace on the next line if desired
-        row = &E.row[E.cy];
-        while (E.cx < row->size && isspace(row->chars[E.cx])) E.cx++;
-    }
+  }
+
+  // 3. Optional: If end of line is reached, move to the first char of the next
+  // row
+  if (E.cx >= row->size && E.cy < E.numrows - 1) {
+    E.cy++;
+    E.cx = 0;
+    // Skip leading whitespace on the next line if desired
+    row = &E.row[E.cy];
+    while (E.cx < row->size && isspace(row->chars[E.cx]))
+      E.cx++;
+  }
 }
-
 
 void editorInsertNewLine(void) {
   if (E.cx == 0) {
@@ -920,7 +930,7 @@ void exModeCallback(char *query, int key) {
     foo = -1;
     return;
   } else if (key == ARROW_UP) {
-      // TODO: cycle through previous commands
+    // TODO: cycle through previous commands
     foo = 1;
   } else {
   }
@@ -934,43 +944,45 @@ void exMode() {
     exit(0);
   } else {
   }
-
 }
 
-static inline int is_word_char(int c) {
-    return isalnum(c) || c == '_';
-}
+static inline int is_word_char(int c) { return isalnum(c) || c == '_'; }
 
 char *editorGetWordUnderCursor(void) {
-    if (E.cy < 0 || E.cy >= E.numrows) return NULL;
+  if (E.cy < 0 || E.cy >= E.numrows)
+    return NULL;
 
-    erow *row = &E.row[E.cy];
-    if (row->size == 0) return NULL;
-    if (E.cx < 0 || E.cx >= row->size) return NULL;
+  erow *row = &E.row[E.cy];
+  if (row->size == 0)
+    return NULL;
+  if (E.cx < 0 || E.cx >= row->size)
+    return NULL;
 
-    if (!is_word_char(row->chars[E.cx])) return NULL;
+  if (!is_word_char(row->chars[E.cx]))
+    return NULL;
 
-    int start = E.cx;
-    int end   = E.cx;
+  int start = E.cx;
+  int end = E.cx;
 
-    // walk left
-    while (start > 0 && is_word_char(row->chars[start - 1])) {
-        start--;
-    }
+  // walk left
+  while (start > 0 && is_word_char(row->chars[start - 1])) {
+    start--;
+  }
 
-    // walk right
-    while (end < row->size && is_word_char(row->chars[end])) {
-        end++;
-    }
+  // walk right
+  while (end < row->size && is_word_char(row->chars[end])) {
+    end++;
+  }
 
-    int len = end - start;
-    if (len <= 0) return NULL;
+  int len = end - start;
+  if (len <= 0)
+    return NULL;
 
-    char *word = malloc(len + 1);
-    memcpy(word, &row->chars[start], len);
-    word[len] = '\0';
+  char *word = malloc(len + 1);
+  memcpy(word, &row->chars[start], len);
+  word[len] = '\0';
 
-    return word;
+  return word;
 }
 
 void nextSearch() {
@@ -1004,17 +1016,18 @@ void nextSearch() {
 }
 
 void editorSearchWordUnderCursor(void) {
-    char *word = editorGetWordUnderCursor();
-    if (!word) return;
+  char *word = editorGetWordUnderCursor();
+  if (!word)
+    return;
 
-    free(E.searchString);
-    E.searchString = word;
+  free(E.searchString);
+  E.searchString = word;
 
-    E.searchIndex = -1;
-    E.searchDirection = 1;
+  E.searchIndex = -1;
+  E.searchDirection = 1;
 
-    // optionally jump to next match immediately, like vim
-    nextSearch();
+  // optionally jump to next match immediately, like vim
+  nextSearch();
 }
 
 void editorFindCallback(char *query, int key) {
@@ -1081,7 +1094,7 @@ void editorFind() {
       editorPrompt("Search: %s (Use ESC/Arrows/Enter)", editorFindCallback);
   if (query) {
     if (E.searchString != NULL) {
-        free(E.searchString);
+      free(E.searchString);
     }
     E.searchString = query;
     // free(query);
@@ -1209,7 +1222,7 @@ void editorDrawStatusBar(struct abuf *ab) {
   int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
                      E.filename ? E.filename : "[No Name]", E.numrows,
                      E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT");
-                     // E.dirty ? "(modified)" : "");
+  // E.dirty ? "(modified)" : "");
   int rlen =
       snprintf(rstatus, sizeof(status), "%s | %d/%d",
                E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);
@@ -1354,65 +1367,65 @@ void editorMoveCursor(int key) {
 }
 
 void handleNormalModeKeypress(int key) {
-    int prev = E.prevNormalKey;
-    E.prevNormalKey = 0;
-    switch (key) {
-    case 'i':
-        E.mode = DIM_INSERT_MODE;
-        break;
-    case 'j':
-        editorMoveCursor(ARROW_DOWN);
-        break;
-    case 'k':
-        editorMoveCursor(ARROW_UP);
-        break;
-    case 'h':
-        editorMoveCursor(ARROW_LEFT);
-        break;
-    case 'l':
-        editorMoveCursor(ARROW_RIGHT);
-        break;
-    case 'g':
-        if (prev == 'g') {
-            E.cy = 0;
-        } else {
-            // save this g
-            E.prevNormalKey = key;
-        }
-        break;
-    case 'G':
-        // move to end of buffer
-        E.cy = E.numrows;
-        break;
-    case 'w':
-        editorMoveWordForward();
-        break;
-    case ':':
-        exMode();
-        break;
-    case '0':
-        editorMoveCursor(HOME_KEY);
-        break;
-    case '$':
-        editorMoveCursor(END_KEY);
-        break;
-    case '/':
-        editorFind();
-        break;
-    case 'n':
-        E.searchDirection = 1;
-        nextSearch();
-        break;
-    case 'N':
-        E.searchDirection = -1;
-        nextSearch();
-        break;
-    case '*':
-        editorSearchWordUnderCursor();
-        break;
-    default:
-        break;
+  int prev = E.prevNormalKey;
+  E.prevNormalKey = 0;
+  switch (key) {
+  case 'i':
+    E.mode = DIM_INSERT_MODE;
+    break;
+  case 'j':
+    editorMoveCursor(ARROW_DOWN);
+    break;
+  case 'k':
+    editorMoveCursor(ARROW_UP);
+    break;
+  case 'h':
+    editorMoveCursor(ARROW_LEFT);
+    break;
+  case 'l':
+    editorMoveCursor(ARROW_RIGHT);
+    break;
+  case 'g':
+    if (prev == 'g') {
+      E.cy = 0;
+    } else {
+      // save this g
+      E.prevNormalKey = key;
     }
+    break;
+  case 'G':
+    // move to end of buffer
+    E.cy = E.numrows;
+    break;
+  case 'w':
+    editorMoveWordForward();
+    break;
+  case ':':
+    exMode();
+    break;
+  case '0':
+    editorMoveCursor(HOME_KEY);
+    break;
+  case '$':
+    editorMoveCursor(END_KEY);
+    break;
+  case '/':
+    editorFind();
+    break;
+  case 'n':
+    E.searchDirection = 1;
+    nextSearch();
+    break;
+  case 'N':
+    E.searchDirection = -1;
+    nextSearch();
+    break;
+  case '*':
+    editorSearchWordUnderCursor();
+    break;
+  default:
+    break;
+  }
 }
 
 void handleInsertModeKeypress(int c) {
@@ -1491,16 +1504,15 @@ void editorProcessKeypress(void) {
 
   int c = editorReadKey();
   switch (E.mode) {
-      case DIM_NORMAL_MODE:
-          handleNormalModeKeypress(c);
-          break;
-      case DIM_INSERT_MODE:
-          handleInsertModeKeypress(c);
-          break;
-    default:
-          break;
+  case DIM_NORMAL_MODE:
+    handleNormalModeKeypress(c);
+    break;
+  case DIM_INSERT_MODE:
+    handleInsertModeKeypress(c);
+    break;
+  default:
+    break;
   }
-
 }
 
 /*** init ***/
