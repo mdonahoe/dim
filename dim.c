@@ -99,6 +99,9 @@ struct editorConfig {
   TSTree *ts_tree;
   int mode;
   int prevNormalKey;
+  char *searchString;
+  int searchIndex;
+  int searchDirection;
 };
 
 struct editorConfig E;
@@ -934,6 +937,85 @@ void exMode() {
 
 }
 
+static inline int is_word_char(int c) {
+    return isalnum(c) || c == '_';
+}
+
+char *editorGetWordUnderCursor(void) {
+    if (E.cy < 0 || E.cy >= E.numrows) return NULL;
+
+    erow *row = &E.row[E.cy];
+    if (row->size == 0) return NULL;
+    if (E.cx < 0 || E.cx >= row->size) return NULL;
+
+    if (!is_word_char(row->chars[E.cx])) return NULL;
+
+    int start = E.cx;
+    int end   = E.cx;
+
+    // walk left
+    while (start > 0 && is_word_char(row->chars[start - 1])) {
+        start--;
+    }
+
+    // walk right
+    while (end < row->size && is_word_char(row->chars[end])) {
+        end++;
+    }
+
+    int len = end - start;
+    if (len <= 0) return NULL;
+
+    char *word = malloc(len + 1);
+    memcpy(word, &row->chars[start], len);
+    word[len] = '\0';
+
+    return word;
+}
+
+void nextSearch() {
+  if (E.searchString == NULL) {
+    return;
+  }
+  int current = E.searchIndex;
+  int i;
+  for (i = 0; i < E.numrows; i++) {
+    current += E.searchDirection;
+    if (current == -1)
+      current = E.numrows - 1;
+    else if (current == E.numrows)
+      current = 0;
+
+    erow *row = &E.row[current];
+    char *match = strstr(row->render, E.searchString);
+    if (match) {
+      E.searchIndex = current;
+      E.cy = current;
+      E.cx = editorRowRxToCx(row, match - row->render);
+      E.rowoff = E.numrows; // hack to scroll to line!
+
+      // saved_hl_line = current;
+      // saved_hl = malloc(row->rsize);
+      // memcpy(saved_hl, row->hl, row->rsize);
+      // memset(&row->hl[match - row->render], HL_MATCH, strlen(query));
+      break;
+    }
+  }
+}
+
+void editorSearchWordUnderCursor(void) {
+    char *word = editorGetWordUnderCursor();
+    if (!word) return;
+
+    free(E.searchString);
+    E.searchString = word;
+
+    E.searchIndex = -1;
+    E.searchDirection = 1;
+
+    // optionally jump to next match immediately, like vim
+    nextSearch();
+}
 
 void editorFindCallback(char *query, int key) {
   static int last_match = -1;
@@ -985,6 +1067,8 @@ void editorFindCallback(char *query, int key) {
       break;
     }
   }
+  E.searchIndex = last_match;
+  E.searchDirection = direction;
 }
 
 void editorFind() {
@@ -996,7 +1080,11 @@ void editorFind() {
   char *query =
       editorPrompt("Search: %s (Use ESC/Arrows/Enter)", editorFindCallback);
   if (query) {
-    free(query);
+    if (E.searchString != NULL) {
+        free(E.searchString);
+    }
+    E.searchString = query;
+    // free(query);
   } else {
     E.cx = saved_cx;
     E.cy = saved_cy;
@@ -1307,6 +1395,20 @@ void handleNormalModeKeypress(int key) {
         break;
     case '$':
         editorMoveCursor(END_KEY);
+        break;
+    case '/':
+        editorFind();
+        break;
+    case 'n':
+        E.searchDirection = 1;
+        nextSearch();
+        break;
+    case 'N':
+        E.searchDirection = -1;
+        nextSearch();
+        break;
+    case '*':
+        editorSearchWordUnderCursor();
         break;
     default:
         break;
