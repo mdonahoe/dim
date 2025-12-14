@@ -1391,6 +1391,21 @@ void handleNormalModeKeypress(int key) {
   case 'l':
     editorMoveCursor(ARROW_RIGHT);
     break;
+  case 'o':
+    // insert line, enter INSERT mode
+    editorInsertRow(E.cy + 1, "", 0);
+    E.cy++;
+    E.cx = 0;
+    E.mode = DIM_INSERT_MODE;
+    break;
+  case 'd':
+    if (prev == 'd') {
+      // delete row
+      editorDelRow(E.cy);
+    } else {
+      E.prevNormalKey = key;
+    }
+    break;
   case 'g':
     if (prev == 'g') {
       E.cy = 0;
@@ -1540,6 +1555,9 @@ void initEditor(void) {
   E.ts_tree = NULL;
   E.mode = DIM_NORMAL_MODE;
   E.prevNormalKey = 0;
+  E.searchString = NULL;
+  E.searchIndex = 0;
+  E.searchDirection = 1;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1)
     die("getWindowSize");
