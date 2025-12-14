@@ -942,6 +942,12 @@ void exMode() {
   if (strcmp(query, "q") == 0) {
     clearScreen();
     exit(0);
+  } else if (strcmp(query, "w") == 0) {
+    editorSave();
+  } else if (strcmp(query, "wq") == 0) {
+    editorSave();
+    clearScreen();
+    exit(0);
   } else {
   }
 }
