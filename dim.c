@@ -761,6 +761,19 @@ void editorRowDelChar(erow *row, int at) {
   }
 }
 
+void editorRowDelSpan(erow *row, int start, int end) {
+    if (start >= end || start < 0 || end >= row->size) {
+        return;
+    }
+    memmove(&row->chars[start], &row->chars[end], row->size - end);
+    row->size = row->size - end + start;
+    editorUpdateRow(row);
+    E.dirty++;
+    if (E.syntax && E.syntax->ts_language) {
+        editorReparseTreeSitter();
+    }
+}
+
 /*** editor operations ***/
 
 void editorInsertChar(int c) {
@@ -781,18 +794,51 @@ int get_char_class(int c) {
   return CLASS_PUNCTUATION;
 }
 
-void editorMoveWordForward() {
-  erow *row = &E.row[E.cy];
-  if (E.cx >= row->size)
-    return; // Already at end of line
+int getStartOfWord(int x, erow *row) {
+  if (x <= 0)
+    return 0; // Already at start of line
 
-  int start_class = get_char_class(row->chars[E.cx]);
+  int start_class = get_char_class(row->chars[x]);
+
+  // 1. Move before characters of the same class
+  while (x > 0 && get_char_class(row->chars[x]) == start_class) {
+    x--;
+  }
+  return x;
+}
+
+int getEndOfWord(int x, erow *row) {
+  if (x >= row->size)
+    return x; // Already at end of line
+
+  int start_class = get_char_class(row->chars[x]);
 
   // 1. Move past characters of the same class
-  while (E.cx < row->size && get_char_class(row->chars[E.cx]) == start_class) {
-    E.cx++;
+  while (x < row->size && get_char_class(row->chars[x]) == start_class) {
+    x++;
   }
+  return x;
+}
 
+void editorDelSurroundingWord() {
+  erow *row = &E.row[E.cy];
+  int start = getStartOfWord(E.cx, row);
+  int end = getEndOfWord(E.cx, row);
+  editorRowDelSpan(row, start, end);
+  E.cx = start;
+}
+
+void editorDelToEndOfWord() {
+  erow *row = &E.row[E.cy];
+  int end = getEndOfWord(E.cx, row);
+  editorRowDelSpan(row, E.cx, end);
+}
+
+void editorMoveWordForward() {
+  erow *row = &E.row[E.cy];
+
+  E.cx = getEndOfWord(E.cx, row);
+  
   // 2. If we landed on whitespace, skip it to find the start of the next word
   if (E.cx < row->size &&
       get_char_class(row->chars[E.cx]) == CLASS_WHITESPACE) {
@@ -1376,8 +1422,15 @@ void handleNormalModeKeypress(int key) {
   int prev = E.prevNormalKey;
   E.prevNormalKey = 0;
   switch (key) {
+  case 'c':
+    E.prevNormalKey = 'c';
+    break;
   case 'i':
+    if (prev == 'c') {
+        E.prevNormalKey = 'i';
+    } else{
     E.mode = DIM_INSERT_MODE;
+    }
     break;
   case 'j':
     editorMoveCursor(ARROW_DOWN);
@@ -1419,7 +1472,21 @@ void handleNormalModeKeypress(int key) {
     E.cy = E.numrows;
     break;
   case 'w':
-    editorMoveWordForward();
+    switch (prev) {
+    case 'c':
+        editorDelToEndOfWord();
+        E.mode = DIM_INSERT_MODE;
+        break;
+    case 'i':
+        editorDelSurroundingWord();
+        E.mode = DIM_INSERT_MODE;
+        break;
+    case 0:
+        editorMoveWordForward();
+        break;
+    default:
+        break;
+    }
     break;
   case ':':
     exMode();
@@ -1448,6 +1515,7 @@ void handleNormalModeKeypress(int key) {
     break;
   }
 }
+
 
 void handleInsertModeKeypress(int c) {
   static int quit_times = DIM_QUIT_TIMES;
