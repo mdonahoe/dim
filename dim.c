@@ -27,8 +27,8 @@ TSLanguage *tree_sitter_python(void);
 #define DIM_TAB_STOP 4
 #define DIM_QUIT_TIMES 3
 #define CTRL_KEY(k) ((k)&0x1f)
-#define DIM_NORMAL_MODE = 1
-#define DIM_INSERT_MODE = 2
+#define DIM_NORMAL_MODE 1
+#define DIM_INSERT_MODE 2
 
 enum editorKey {
   BACKSPACE = 127,
@@ -98,6 +98,7 @@ struct editorConfig {
   TSParser *ts_parser;
   TSTree *ts_tree;
   int mode;
+  int prevNormalKey;
 };
 
 struct editorConfig E;
@@ -762,6 +763,44 @@ void editorInsertChar(int c) {
   E.cx++;
 }
 
+
+enum { CLASS_WHITESPACE, CLASS_PUNCTUATION, CLASS_WORD };
+
+int get_char_class(int c) {
+    if (isspace(c) || c == '\0') return CLASS_WHITESPACE;
+    if (isalnum(c) || c == '_') return CLASS_WORD;
+    return CLASS_PUNCTUATION;
+}
+
+void editorMoveWordForward() {
+    erow *row = &E.row[E.cy];
+    if (E.cx >= row->size) return; // Already at end of line
+
+    int start_class = get_char_class(row->chars[E.cx]);
+
+    // 1. Move past characters of the same class
+    while (E.cx < row->size && get_char_class(row->chars[E.cx]) == start_class) {
+        E.cx++;
+    }
+
+    // 2. If we landed on whitespace, skip it to find the start of the next word
+    if (E.cx < row->size && get_char_class(row->chars[E.cx]) == CLASS_WHITESPACE) {
+        while (E.cx < row->size && get_char_class(row->chars[E.cx]) == CLASS_WHITESPACE) {
+            E.cx++;
+        }
+    }
+    
+    // 3. Optional: If end of line is reached, move to the first char of the next row
+    if (E.cx >= row->size && E.cy < E.numrows - 1) {
+        E.cy++;
+        E.cx = 0;
+        // Skip leading whitespace on the next line if desired
+        row = &E.row[E.cy];
+        while (E.cx < row->size && isspace(row->chars[E.cx])) E.cx++;
+    }
+}
+
+
 void editorInsertNewLine(void) {
   if (E.cx == 0) {
     editorInsertRow(E.cy, "", 0);
@@ -872,6 +911,29 @@ void editorSave(void) {
 }
 
 /*** find ***/
+void exModeCallback(char *query, int key) {
+  static int foo = -1;
+  if (key == '\r' || key == '\x1b') {
+    foo = -1;
+    return;
+  } else if (key == ARROW_UP) {
+      // TODO: cycle through previous commands
+    foo = 1;
+  } else {
+  }
+}
+
+void exMode() {
+  char *query = editorPrompt("ex: %s", exModeCallback);
+
+  if (strcmp(query, "q") == 0) {
+    clearScreen();
+    exit(0);
+  } else {
+  }
+
+}
+
 
 void editorFindCallback(char *query, int key) {
   static int last_match = -1;
@@ -1058,7 +1120,8 @@ void editorDrawStatusBar(struct abuf *ab) {
   char status[80], rstatus[80];
   int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
                      E.filename ? E.filename : "[No Name]", E.numrows,
-                     E.dirty ? "(modified)" : "");
+                     E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT");
+                     // E.dirty ? "(modified)" : "");
   int rlen =
       snprintf(rstatus, sizeof(status), "%s | %d/%d",
                E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);
@@ -1203,16 +1266,55 @@ void editorMoveCursor(int key) {
 }
 
 void handleNormalModeKeypress(int key) {
+    int prev = E.prevNormalKey;
+    E.prevNormalKey = 0;
     switch (key) {
-        case 'i':
-            E.mode = DIM_NORMAL_MODE;
-            break;
-        default:
-            break;
+    case 'i':
+        E.mode = DIM_INSERT_MODE;
+        break;
+    case 'j':
+        editorMoveCursor(ARROW_DOWN);
+        break;
+    case 'k':
+        editorMoveCursor(ARROW_UP);
+        break;
+    case 'h':
+        editorMoveCursor(ARROW_LEFT);
+        break;
+    case 'l':
+        editorMoveCursor(ARROW_RIGHT);
+        break;
+    case 'g':
+        if (prev == 'g') {
+            E.cy = 0;
+        } else {
+            // save this g
+            E.prevNormalKey = key;
+        }
+        break;
+    case 'G':
+        // move to end of buffer
+        E.cy = E.numrows;
+        break;
+    case 'w':
+        editorMoveWordForward();
+        break;
+    case ':':
+        exMode();
+        break;
+    case '0':
+        editorMoveCursor(HOME_KEY);
+        break;
+    case '$':
+        editorMoveCursor(END_KEY);
+        break;
+    default:
+        break;
     }
 }
 
 void handleInsertModeKeypress(int c) {
+  static int quit_times = DIM_QUIT_TIMES;
   switch (c) {
   case '\r':
     editorInsertNewLine();
@@ -1283,7 +1385,6 @@ void handleInsertModeKeypress(int c) {
   quit_times = DIM_QUIT_TIMES;
 }
 
-static int quit_times = DIM_QUIT_TIMES;
 void editorProcessKeypress(void) {
 
   int c = editorReadKey();
@@ -1317,7 +1418,8 @@ void initEditor(void) {
   E.syntax = NULL;
   E.ts_parser = NULL;
   E.ts_tree = NULL;
-  E.mode = DIM_INSERT_MODE;
+  E.mode = DIM_NORMAL_MODE;
+  E.prevNormalKey = 0;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1)
     die("getWindowSize");
