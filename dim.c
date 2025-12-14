@@ -27,6 +27,8 @@ TSLanguage *tree_sitter_python(void);
 #define DIM_TAB_STOP 4
 #define DIM_QUIT_TIMES 3
 #define CTRL_KEY(k) ((k)&0x1f)
+#define DIM_NORMAL_MODE = 1
+#define DIM_INSERT_MODE = 2
 
 enum editorKey {
   BACKSPACE = 127,
@@ -95,6 +97,7 @@ struct editorConfig {
   struct termios orig_termios;
   TSParser *ts_parser;
   TSTree *ts_tree;
+  int mode;
 };
 
 struct editorConfig E;
@@ -1199,11 +1202,17 @@ void editorMoveCursor(int key) {
   }
 }
 
-void editorProcessKeypress(void) {
-  static int quit_times = DIM_QUIT_TIMES;
+void handleNormalModeKeypress(int key) {
+    switch (key) {
+        case 'i':
+            E.mode = DIM_NORMAL_MODE;
+            break;
+        default:
+            break;
+    }
+}
 
-  int c = editorReadKey();
-
+void handleInsertModeKeypress(int c) {
   switch (c) {
   case '\r':
     editorInsertNewLine();
@@ -1259,6 +1268,7 @@ void editorProcessKeypress(void) {
 
   case CTRL_KEY('l'):
   case '\x1b':
+    E.mode = DIM_NORMAL_MODE;
     break;
 
   case CTRL_KEY('f'):
@@ -1271,6 +1281,23 @@ void editorProcessKeypress(void) {
   }
 
   quit_times = DIM_QUIT_TIMES;
+}
+
+static int quit_times = DIM_QUIT_TIMES;
+void editorProcessKeypress(void) {
+
+  int c = editorReadKey();
+  switch (E.mode) {
+      case DIM_NORMAL_MODE:
+          handleNormalModeKeypress(c);
+          break;
+      case DIM_INSERT_MODE:
+          handleInsertModeKeypress(c);
+          break;
+    default:
+          break;
+  }
+
 }
 
 /*** init ***/
@@ -1290,6 +1317,7 @@ void initEditor(void) {
   E.syntax = NULL;
   E.ts_parser = NULL;
   E.ts_tree = NULL;
+  E.mode = DIM_INSERT_MODE;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1)
     die("getWindowSize");
