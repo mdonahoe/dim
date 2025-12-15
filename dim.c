@@ -109,6 +109,8 @@ struct editorConfig {
   int searchDirection;
   markpt v_start;
   markpt v_end;
+  char *clipboard;
+  int clipboard_len;
 };
 
 struct editorConfig E;
@@ -1478,13 +1480,77 @@ void startVisualMarks() {
     setEndVisualMark();
 }
 
+void yankSelection() {
+  int start_y = E.v_start.y;
+  int end_y = E.v_end.y;
+  int start_x = E.v_start.x;
+  int end_x = E.v_end.x;
+  
+  // Normalize so start is before end
+  if (start_y > end_y || (start_y == end_y && start_x > end_x)) {
+    int tmp = start_y; start_y = end_y; end_y = tmp;
+    tmp = start_x; start_x = end_x; end_x = tmp;
+  }
+  
+  // Calculate buffer size needed
+  int buflen = 0;
+  for (int y = start_y; y <= end_y; y++) {
+    if (y >= E.numrows) break;
+    int x_start = (y == start_y) ? start_x : 0;
+    int x_end = (y == end_y) ? end_x : E.row[y].size;
+    buflen += (x_end - x_start);
+    if (y < end_y) buflen++; // for newline
+  }
+  
+  // Allocate and copy
+  free(E.clipboard);
+  E.clipboard = malloc(buflen + 1);
+  E.clipboard_len = buflen;
+  
+  int pos = 0;
+  for (int y = start_y; y <= end_y; y++) {
+    if (y >= E.numrows) break;
+    int x_start = (y == start_y) ? start_x : 0;
+    int x_end = (y == end_y) ? end_x : E.row[y].size;
+    int len = x_end - x_start;
+    memcpy(&E.clipboard[pos], &E.row[y].chars[x_start], len);
+    pos += len;
+    if (y < end_y) {
+      E.clipboard[pos++] = '\n';
+    }
+  }
+  E.clipboard[pos] = '\0';
+  
+  editorSetStatusMessage("Yanked %d chars", buflen);
+}
+
+void pasteClipboard() {
+  if (!E.clipboard || E.clipboard_len == 0) {
+    editorSetStatusMessage("Clipboard is empty");
+    return;
+  }
+  
+  // Insert below cursor
+  editorInsertNewLine();
+  
+  // Insert clipboard content
+  for (int i = 0; i < E.clipboard_len; i++) {
+    if (E.clipboard[i] == '\n') {
+      editorInsertNewLine();
+    } else {
+      editorInsertChar(E.clipboard[i]);
+    }
+  }
+}
+
 void handleVisualModeKeypress(int key) {
   switch (key) {
   case 'v':
     E.mode = DIM_NORMAL_MODE;
     break;
   case 'y':
-    // yank, todo
+    yankSelection();
+    E.mode = DIM_NORMAL_MODE;
     break;
   case 'j':
     editorMoveCursor(ARROW_DOWN);
@@ -1604,6 +1670,9 @@ void handleNormalModeKeypress(int key) {
     E.mode = DIM_VISUAL_MODE;
     startVisualMarks();
     break;
+  case 'p':
+    pasteClipboard();
+    break;
   default:
     break;
   }
@@ -1722,6 +1791,8 @@ void initEditor(void) {
   E.searchString = NULL;
   E.searchIndex = 0;
   E.searchDirection = 1;
+  E.clipboard = NULL;
+  E.clipboard_len = 0;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1)
     die("getWindowSize");
