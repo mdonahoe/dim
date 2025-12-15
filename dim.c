@@ -85,6 +85,13 @@ typedef struct markpt {
   int y;
 } markpt;
 
+typedef struct undoState {
+  erow *row;
+  int numrows;
+  int cx;
+  int cy;
+} undoState;
+
 struct editorConfig {
   int cx, cy;
   int rx;
@@ -112,6 +119,9 @@ struct editorConfig {
   char *clipboard;
   int clipboard_len;
   time_t last_ts_parse;
+  undoState *undo_stack;
+  int undo_stack_size;
+  int undo_stack_capacity;
 };
 
 struct editorConfig E;
@@ -168,6 +178,8 @@ void editorRefreshScreen(void);
 char *editorPrompt(char *prompt, void (*callback)(char *, int));
 char *editorRowsToString(int *buflen);
 void editorRowDelSpan(erow *row, int start, int end);
+void editorPushUndoState(void);
+void editorUndo(void);
 
 /*** terminal ***/
 
@@ -1228,6 +1240,89 @@ void editorFindCallback(char *query, int key) {
   E.searchDirection = direction;
 }
 
+/*** undo ***/
+
+void editorFreeRows(erow *rows, int numrows) {
+  if (!rows)
+    return;
+  for (int i = 0; i < numrows; i++) {
+    free(rows[i].chars);
+    free(rows[i].render);
+    free(rows[i].hl);
+  }
+  free(rows);
+}
+
+erow *editorCopyRows(int *out_numrows) {
+  if (E.numrows == 0) {
+    *out_numrows = 0;
+    return NULL;
+  }
+
+  erow *copy = malloc(E.numrows * sizeof(erow));
+  for (int i = 0; i < E.numrows; i++) {
+    copy[i].idx = E.row[i].idx;
+    copy[i].size = E.row[i].size;
+    copy[i].rsize = E.row[i].rsize;
+    copy[i].hl_open_comment = E.row[i].hl_open_comment;
+
+    // Copy chars
+    copy[i].chars = malloc(E.row[i].size + 1);
+    memcpy(copy[i].chars, E.row[i].chars, E.row[i].size + 1);
+
+    // Copy render
+    copy[i].render = malloc(E.row[i].rsize + 1);
+    memcpy(copy[i].render, E.row[i].render, E.row[i].rsize + 1);
+
+    // Copy highlight
+    copy[i].hl = malloc(E.row[i].rsize);
+    memcpy(copy[i].hl, E.row[i].hl, E.row[i].rsize);
+  }
+  *out_numrows = E.numrows;
+  return copy;
+}
+
+void editorPushUndoState(void) {
+  // Resize stack if needed
+  if (E.undo_stack_size >= E.undo_stack_capacity) {
+    E.undo_stack_capacity =
+        E.undo_stack_capacity == 0 ? 10 : E.undo_stack_capacity * 2;
+    E.undo_stack =
+        realloc(E.undo_stack, E.undo_stack_capacity * sizeof(undoState));
+  }
+
+  undoState *state = &E.undo_stack[E.undo_stack_size];
+  state->numrows = 0;
+  state->row = editorCopyRows(&state->numrows);
+  state->cx = E.cx;
+  state->cy = E.cy;
+
+  E.undo_stack_size++;
+}
+
+void editorUndo(void) {
+  if (E.undo_stack_size == 0) {
+    editorSetStatusMessage("Nothing to undo");
+    return;
+  }
+
+  E.undo_stack_size--;
+  undoState *state = &E.undo_stack[E.undo_stack_size];
+
+  // Free current state
+  editorFreeRows(E.row, E.numrows);
+
+  // Restore from undo state
+  E.row = state->row;
+  E.numrows = state->numrows;
+  E.cx = state->cx;
+  E.cy = state->cy;
+  E.dirty = 1;
+
+  // Reparse syntax
+  editorReparseTreeSitter();
+}
+
 void editorFind() {
   int saved_cx = E.cx;
   int saved_cy = E.cy;
@@ -1836,6 +1931,7 @@ void handleVisualModeKeypress(int key) {
     return;
   case 'x':
   case 'd':
+    editorPushUndoState();
     deleteSelection();
     E.mode = DIM_NORMAL_MODE;
     break;
@@ -1881,6 +1977,7 @@ void handleNormalModeKeypress(int key) {
   case 'd':
     if (prev == 'd') {
       // delete row
+      editorPushUndoState();
       editorDelRow(E.cy);
     } else {
       E.prevNormalKey = key;
@@ -1888,6 +1985,7 @@ void handleNormalModeKeypress(int key) {
     break;
   case 'x':
     // delete char and remain
+    editorPushUndoState();
     editorXChar();
     break;
   case 'A':
@@ -1905,14 +2003,17 @@ void handleNormalModeKeypress(int key) {
   case 'w':
     switch (prev) {
     case 'c':
+      editorPushUndoState();
       editorDelToEndOfWord();
       E.mode = DIM_INSERT_MODE;
       break;
     case 'i':
+      editorPushUndoState();
       editorDelSurroundingWord();
       E.mode = DIM_INSERT_MODE;
       break;
     case 'd':
+      editorPushUndoState();
       editorDelToEndOfWord();
       break;
     case 0:
@@ -1944,10 +2045,14 @@ void handleNormalModeKeypress(int key) {
     startVisualMarks();
     break;
   case 'p':
+    editorPushUndoState();
     pasteClipboard();
     break;
   case '%':
     editorJumpToMatchingBrace();
+    break;
+  case 'u':
+    editorUndo();
     break;
   default:
     break;
@@ -2011,6 +2116,7 @@ void handleInsertModeKeypress(int c) {
 
   case CTRL_KEY('l'):
   case '\x1b':
+    editorPushUndoState();
     E.mode = DIM_NORMAL_MODE;
     break;
 
@@ -2069,6 +2175,9 @@ void initEditor(void) {
   E.clipboard = NULL;
   E.clipboard_len = 0;
   E.last_ts_parse = time(NULL);
+  E.undo_stack = NULL;
+  E.undo_stack_size = 0;
+  E.undo_stack_capacity = 0;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1)
     die("getWindowSize");

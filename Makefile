@@ -67,3 +67,6 @@ color_test: color_test.c
 clean:
 	rm -f dim color_test
 
+format: dim.c
+	clang-format dim.c -i
+
