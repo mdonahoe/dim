@@ -111,6 +111,7 @@ struct editorConfig {
   markpt v_end;
   char *clipboard;
   int clipboard_len;
+  time_t last_ts_parse;
 };
 
 struct editorConfig E;
@@ -559,6 +560,14 @@ int editorSyntaxToColor(int hl) {
   }
 }
 
+void editorReparseTreeSitterThrottled() {
+  time_t now = time(NULL);
+  if (now - E.last_ts_parse >= 1) {
+    editorReparseTreeSitter();
+    E.last_ts_parse = now;
+  }
+}
+
 void editorReparseTreeSitter() {
   if (E.syntax == NULL || E.syntax->ts_language == NULL)
     return;
@@ -743,7 +752,7 @@ void editorRowInsertChar(erow *row, int at, int c) {
   editorUpdateRow(row);
   E.dirty++;
   if (E.syntax && E.syntax->ts_language) {
-    editorReparseTreeSitter();
+    editorReparseTreeSitterThrottled();
   }
 }
 
@@ -755,7 +764,7 @@ void editorRowAppendString(erow *row, char *s, size_t len) {
   editorUpdateRow(row);
   E.dirty++;
   if (E.syntax && E.syntax->ts_language) {
-    editorReparseTreeSitter();
+    editorReparseTreeSitterThrottled();
   }
 }
 
@@ -767,7 +776,7 @@ void editorRowDelChar(erow *row, int at) {
   editorUpdateRow(row);
   E.dirty++;
   if (E.syntax && E.syntax->ts_language) {
-    editorReparseTreeSitter();
+    editorReparseTreeSitterThrottled();
   }
 }
 
@@ -884,7 +893,7 @@ void editorInsertNewLine(void) {
   E.cy++;
   E.cx = 0;
   if (E.syntax && E.syntax->ts_language) {
-    editorReparseTreeSitter();
+    editorReparseTreeSitterThrottled();
   }
 }
 
@@ -1793,6 +1802,7 @@ void initEditor(void) {
   E.searchDirection = 1;
   E.clipboard = NULL;
   E.clipboard_len = 0;
+  E.last_ts_parse = time(NULL);
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1)
     die("getWindowSize");
