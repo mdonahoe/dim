@@ -162,6 +162,7 @@ struct editorSyntax HLDB[] = {
 
 /*** prototypes ***/
 
+void editorReparseTreeSitter(void);
 void editorSetStatusMessage(const char *fmt, ...);
 void editorRefreshScreen(void);
 char *editorPrompt(char *prompt, void (*callback)(char *, int));
@@ -1552,39 +1553,67 @@ void pasteClipboard() {
   }
 }
 
+// Returns 1 if key was a movement command, 0 otherwise
+int handleMovementKey(int key) {
+  switch (key) {
+  case 'j':
+    editorMoveCursor(ARROW_DOWN);
+    return 1;
+  case 'k':
+    editorMoveCursor(ARROW_UP);
+    return 1;
+  case 'h':
+    editorMoveCursor(ARROW_LEFT);
+    return 1;
+  case 'l':
+    editorMoveCursor(ARROW_RIGHT);
+    return 1;
+  case 'w':
+    editorMoveWordForward();
+    return 1;
+  case '0':
+    editorMoveCursor(HOME_KEY);
+    return 1;
+  case '$':
+    editorMoveCursor(END_KEY);
+    return 1;
+  case 'g':
+    // 'g' needs special handling for 'gg', so return 0 to let caller handle it
+    return 0;
+  case 'G':
+    E.cy = E.numrows;
+    return 1;
+  default:
+    return 0;
+  }
+}
+
 void handleVisualModeKeypress(int key) {
   switch (key) {
   case 'v':
     E.mode = DIM_NORMAL_MODE;
-    break;
+    return;
   case 'y':
     yankSelection();
     E.mode = DIM_NORMAL_MODE;
-    break;
-  case 'j':
-    editorMoveCursor(ARROW_DOWN);
-    break;
-  case 'k':
-    editorMoveCursor(ARROW_UP);
-    break;
-  case 'h':
-    editorMoveCursor(ARROW_LEFT);
-    break;
-  case 'l':
-    editorMoveCursor(ARROW_RIGHT);
-    break;
-  case 'w':
-    editorMoveWordForward();
-    break;
+    return;
   default:
+    if (handleMovementKey(key)) {
+      setEndVisualMark();
+    }
     break;
   }
-  setEndVisualMark();
 }
 
 void handleNormalModeKeypress(int key) {
   int prev = E.prevNormalKey;
   E.prevNormalKey = 0;
+  
+  // Try to handle as movement first
+  if (handleMovementKey(key)) {
+    return;
+  }
+  
   switch (key) {
   case 'c':
     E.prevNormalKey = 'c';
@@ -1595,18 +1624,6 @@ void handleNormalModeKeypress(int key) {
     } else{
     E.mode = DIM_INSERT_MODE;
     }
-    break;
-  case 'j':
-    editorMoveCursor(ARROW_DOWN);
-    break;
-  case 'k':
-    editorMoveCursor(ARROW_UP);
-    break;
-  case 'h':
-    editorMoveCursor(ARROW_LEFT);
-    break;
-  case 'l':
-    editorMoveCursor(ARROW_RIGHT);
     break;
   case 'o':
     // insert line, enter INSERT mode
@@ -1631,10 +1648,6 @@ void handleNormalModeKeypress(int key) {
       E.prevNormalKey = key;
     }
     break;
-  case 'G':
-    // move to end of buffer
-    E.cy = E.numrows;
-    break;
   case 'w':
     switch (prev) {
     case 'c':
@@ -1654,12 +1667,6 @@ void handleNormalModeKeypress(int key) {
     break;
   case ':':
     exMode();
-    break;
-  case '0':
-    editorMoveCursor(HOME_KEY);
-    break;
-  case '$':
-    editorMoveCursor(END_KEY);
     break;
   case '/':
     editorFind();
