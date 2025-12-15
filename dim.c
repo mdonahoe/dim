@@ -1209,6 +1209,27 @@ void editorScroll(void) {
   }
 }
 
+int isInVisualSelection(int x, int y) {
+  if (E.mode != DIM_VISUAL_MODE) return 0;
+  
+  int start_y = E.v_start.y;
+  int end_y = E.v_end.y;
+  int start_x = E.v_start.x;
+  int end_x = E.v_end.x;
+  
+  // Normalize so start is before end
+  if (start_y > end_y || (start_y == end_y && start_x > end_x)) {
+    int tmp = start_y; start_y = end_y; end_y = tmp;
+    tmp = start_x; start_x = end_x; end_x = tmp;
+  }
+  
+  if (y < start_y || y > end_y) return 0;
+  if (y == start_y && y == end_y) return x >= start_x && x <= end_x;
+  if (y == start_y) return x >= start_x;
+  if (y == end_y) return x <= end_x;
+  return 1;
+}
+
 void editorDrawRows(struct abuf *ab) {
   int y;
   for (y = 0; y < E.screenrows; y++) {
@@ -1240,8 +1261,21 @@ void editorDrawRows(struct abuf *ab) {
       char *c = &E.row[filerow].render[E.coloff];
       unsigned char *hl = &E.row[filerow].hl[E.coloff];
       int current_color = -1;
+      int in_selection = 0;
       int j;
       for (j = 0; j < len; j++) {
+        int char_x = E.coloff + j;
+        int is_selected = isInVisualSelection(char_x, filerow);
+        
+        // Toggle selection background
+        if (is_selected && !in_selection) {
+          abAppend(ab, "\x1b[48;5;237m", 11); // dark gray background
+          in_selection = 1;
+        } else if (!is_selected && in_selection) {
+          abAppend(ab, "\x1b[49m", 5); // reset background
+          in_selection = 0;
+        }
+        
         if (iscntrl(c[j])) {
           char sym = (c[j] < 26) ? '@' + c[j] : '?';
           abAppend(ab, "\x1b[7m", 4);
@@ -1251,6 +1285,9 @@ void editorDrawRows(struct abuf *ab) {
             char buf[16];
             int clen = snprintf(buf, sizeof(buf), "\x1b[%dm", current_color);
             abAppend(ab, buf, clen);
+          }
+          if (in_selection) {
+            abAppend(ab, "\x1b[48;5;237m", 11);
           }
         } else if (0 && hl[j] == HL_NORMAL) {
           if (current_color != -1) {
@@ -1268,6 +1305,9 @@ void editorDrawRows(struct abuf *ab) {
           }
           abAppend(ab, &c[j], 1);
         }
+      }
+      if (in_selection) {
+        abAppend(ab, "\x1b[49m", 5); // reset background at line end
       }
       abAppend(ab, "\x1b[39m", 5);
     }
