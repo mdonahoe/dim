@@ -28,6 +28,7 @@ TSLanguage *tree_sitter_python(void);
 #define CTRL_KEY(k) ((k) & 0x1f)
 #define DIM_NORMAL_MODE 1
 #define DIM_INSERT_MODE 2
+#define DIM_VISUAL_MODE 3
 
 enum editorKey {
   BACKSPACE = 127,
@@ -79,6 +80,11 @@ typedef struct erow {
   int hl_open_comment;
 } erow;
 
+typedef struct markpt {
+  int x;
+  int y;
+} markpt;
+
 struct editorConfig {
   int cx, cy;
   int rx;
@@ -101,6 +107,8 @@ struct editorConfig {
   char *searchString;
   int searchIndex;
   int searchDirection;
+  markpt v_start;
+  markpt v_end;
 };
 
 struct editorConfig E;
@@ -1271,10 +1279,10 @@ void editorDrawRows(struct abuf *ab) {
 void editorDrawStatusBar(struct abuf *ab) {
   abAppend(ab, "\x1b[7m", 4);
   char status[80], rstatus[80];
-  int len = snprintf(status, sizeof(status), "%.20s - %d lines %s -- %s",
+  int len = snprintf(status, sizeof(status), "%.20s - %d lines %s -- %s %d",
                      E.filename ? E.filename : "[No Name]", E.numrows,
                      E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT",
-  					 E.dirty ? "(modified)" : "");
+  					 E.dirty ? "(modified)" : "", E.v_end.y - E.v_start.y);
   int rlen =
       snprintf(rstatus, sizeof(status), "%s | %d/%d",
                E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);
@@ -1418,6 +1426,47 @@ void editorMoveCursor(int key) {
   }
 }
 
+
+void setEndVisualMark() {
+    E.v_end.x = E.cx;
+    E.v_end.y = E.cy;
+}
+
+void startVisualMarks() {
+    E.v_start.x = E.cx;
+    E.v_start.y = E.cy;
+    setEndVisualMark();
+}
+
+void handleVisualModeKeypress(int key) {
+  switch (key) {
+  case 'v':
+    E.mode = DIM_NORMAL_MODE;
+    break;
+  case 'y':
+    // yank, todo
+    break;
+  case 'j':
+    editorMoveCursor(ARROW_DOWN);
+    break;
+  case 'k':
+    editorMoveCursor(ARROW_UP);
+    break;
+  case 'h':
+    editorMoveCursor(ARROW_LEFT);
+    break;
+  case 'l':
+    editorMoveCursor(ARROW_RIGHT);
+    break;
+  case 'w':
+    editorMoveWordForward();
+    break;
+  default:
+    break;
+  }
+  setEndVisualMark();
+}
+
 void handleNormalModeKeypress(int key) {
   int prev = E.prevNormalKey;
   E.prevNormalKey = 0;
@@ -1511,6 +1560,10 @@ void handleNormalModeKeypress(int key) {
   case '*':
     editorSearchWordUnderCursor();
     break;
+  case 'v':
+    E.mode = DIM_VISUAL_MODE;
+    startVisualMarks();
+    break;
   default:
     break;
   }
@@ -1598,6 +1651,9 @@ void editorProcessKeypress(void) {
     break;
   case DIM_INSERT_MODE:
     handleInsertModeKeypress(c);
+    break;
+  case DIM_VISUAL_MODE:
+    handleVisualModeKeypress(c);
     break;
   default:
     break;
