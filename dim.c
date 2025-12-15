@@ -898,6 +898,17 @@ void editorInsertNewLine(void) {
   }
 }
 
+void editorXChar(void) {
+  if (E.cy == E.numrows)
+    return;
+  erow *row = &E.row[E.cy];
+  if (E.cx < row->size) {
+    editorRowDelChar(row, E.cx);
+  } else {
+    editorDelRow(E.cy);
+  }
+}
+
 void editorDelChar(void) {
   if (E.cy == E.numrows)
     return;
@@ -1639,6 +1650,14 @@ void handleNormalModeKeypress(int key) {
     } else {
       E.prevNormalKey = key;
     }
+    break;
+  case 'x':
+    // delete char and remain
+    editorXChar();
+    break;
+  case 'A':
+    editorMoveCursor(END_KEY);
+    E.mode = DIM_INSERT_MODE;
     break;
   case 'g':
     if (prev == 'g') {
