@@ -1253,6 +1253,23 @@ int isInVisualSelection(int x, int y) {
   return 1;
 }
 
+// Returns the length of search match at position x, or 0 if no match
+int getSearchMatchLength(int x, int y) {
+  if (!E.searchString) return 0;
+  if (y < 0 || y >= E.numrows) return 0;
+  
+  erow *row = &E.row[y];
+  int search_len = strlen(E.searchString);
+  
+  // Check if x position starts a search match
+  if (x + search_len <= row->rsize) {
+    if (strncmp(&row->render[x], E.searchString, search_len) == 0) {
+      return search_len;
+    }
+  }
+  return 0;
+}
+
 void editorDrawRows(struct abuf *ab) {
   int y;
   for (y = 0; y < E.screenrows; y++) {
@@ -1285,16 +1302,49 @@ void editorDrawRows(struct abuf *ab) {
       unsigned char *hl = &E.row[filerow].hl[E.coloff];
       int current_color = -1;
       int in_selection = 0;
+      int in_search = 0;
+      int search_match_end = 0;  // Track when current search match ends
       int j;
       for (j = 0; j < len; j++) {
         int char_x = E.coloff + j;
         int is_selected = isInVisualSelection(char_x, filerow);
         
-        // Toggle selection background
-        if (is_selected && !in_selection) {
+        // Determine if this character is in a search match
+        int is_search = 0;
+        if (char_x < search_match_end) {
+          // We're still in the previous match
+          is_search = 1;
+        } else {
+          // Check if a new match starts here
+          int match_len = getSearchMatchLength(char_x, filerow);
+          if (match_len > 0) {
+            is_search = 1;
+            search_match_end = char_x + match_len;
+          }
+        }
+        
+        // Search matches take priority over visual selection
+        if (is_search && !in_search) {
+          abAppend(ab, "\x1b[48;5;226m\x1b[30m", 17); // bright yellow background, black text
+          in_search = 1;
+        } else if (!is_search && in_search) {
+          // If we're leaving search, check if we enter selection
+          if (is_selected) {
+            abAppend(ab, "\x1b[48;5;237m", 11);
+            in_selection = 1;
+          } else {
+            abAppend(ab, "\x1b[49m\x1b[39m", 10); // reset background and foreground
+          }
+          in_search = 0;
+          // Restore syntax color if not in selection
+          if (!is_selected) {
+            current_color = -1;
+          }
+        } else if (is_selected && !in_selection && !in_search) {
+          // Toggle selection background (only if not in search)
           abAppend(ab, "\x1b[48;5;237m", 11); // dark gray background
           in_selection = 1;
-        } else if (!is_selected && in_selection) {
+        } else if (!is_selected && in_selection && !in_search) {
           abAppend(ab, "\x1b[49m", 5); // reset background
           in_selection = 0;
         }
@@ -1309,9 +1359,14 @@ void editorDrawRows(struct abuf *ab) {
             int clen = snprintf(buf, sizeof(buf), "\x1b[%dm", current_color);
             abAppend(ab, buf, clen);
           }
-          if (in_selection) {
+          if (in_search) {
+            abAppend(ab, "\x1b[48;5;226m\x1b[30m", 17);
+          } else if (in_selection) {
             abAppend(ab, "\x1b[48;5;237m", 11);
           }
+        } else if (in_search) {
+          // In search match: ignore syntax coloring, just output character
+          abAppend(ab, &c[j], 1);
         } else if (0 && hl[j] == HL_NORMAL) {
           if (current_color != -1) {
             abAppend(ab, "\x1b[39m", 5);
@@ -1329,7 +1384,7 @@ void editorDrawRows(struct abuf *ab) {
           abAppend(ab, &c[j], 1);
         }
       }
-      if (in_selection) {
+      if (in_search || in_selection) {
         abAppend(ab, "\x1b[49m", 5); // reset background at line end
       }
       abAppend(ab, "\x1b[39m", 5);
