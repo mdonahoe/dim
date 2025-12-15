@@ -167,6 +167,7 @@ void editorSetStatusMessage(const char *fmt, ...);
 void editorRefreshScreen(void);
 char *editorPrompt(char *prompt, void (*callback)(char *, int));
 char *editorRowsToString(int *buflen);
+void editorRowDelSpan(erow *row, int start, int end);
 
 /*** terminal ***/
 
@@ -743,6 +744,66 @@ void editorDelRow(int at) {
   E.dirty++;
 }
 
+void editorDelRows(int start, int end) {
+  int i = start;
+  while (i < end) {
+    editorDelRow(start);
+    i++;
+  }
+}
+
+void editorDelSpan(markpt a, markpt b) {
+  int start_y;
+  int start_x;
+  int end_y;
+  int end_x;
+  if (a.y < b.y) {
+    start_y = a.y;
+    start_x = a.x;
+    end_y = b.y;
+    end_x = b.x;
+  } else if (a.y > b.y) {
+    start_y = b.y;
+    start_x = b.x;
+    end_y = a.y;
+    end_x = a.x;
+  } else {
+    start_y = a.y;
+    end_y = b.y;
+    if (a.x < b.x) {
+      start_x = a.x;
+      end_x = b.x;
+    } else {
+      start_x = b.x;
+      end_x = a.x;
+    }
+  }
+  if (start_y < end_y) {
+    erow *row = &E.row[end_y];
+    if (end_x < row->size - 1) {
+        editorRowDelSpan(row, 0, end_x + 1);
+    } else {
+      editorDelRow(end_y);
+    }
+    editorDelRows(start_y + 1, end_y);
+    row = &E.row[start_y];
+    if (start_x > 0) {
+      editorRowDelSpan(row, start_x, row->size);
+    } else {
+      editorDelRow(start_y);
+    }
+  } else {
+    erow *row = &E.row[start_y];
+    if (start_x == 0 && end_x == row->size - 1) {
+      editorDelRow(end_x);
+    } else {
+      editorRowDelSpan(row, start_x, end_x + 1);
+    }
+  }
+  E.cx = start_x;
+  E.cy = start_y;
+}
+
 void editorRowInsertChar(erow *row, int at, int c) {
   if (at < 0 || at > row->size)
     at = row->size;
@@ -782,7 +843,7 @@ void editorRowDelChar(erow *row, int at) {
 }
 
 void editorRowDelSpan(erow *row, int start, int end) {
-  if (start >= end || start < 0 || end >= row->size) {
+  if (start >= end || start < 0 || end > row->size) {
     return;
   }
   memmove(&row->chars[start], &row->chars[end], row->size - end);
@@ -1521,7 +1582,7 @@ void editorMoveCursor(int key) {
     break;
   case END_KEY:
     if (E.cy < E.numrows)
-      E.cx = E.row[E.cy].size;
+      E.cx = E.row[E.cy].size - 1;
     break;
   case ARROW_LEFT:
     if (E.cx != 0) {
@@ -1567,6 +1628,8 @@ void startVisualMarks() {
   E.v_start.y = E.cy;
   setEndVisualMark();
 }
+
+void deleteSelection() { editorDelSpan(E.v_start, E.v_end); }
 
 void yankSelection() {
   int start_y = E.v_start.y;
@@ -1682,6 +1745,11 @@ void handleVisualModeKeypress(int key) {
     yankSelection();
     E.mode = DIM_NORMAL_MODE;
     return;
+  case 'x':
+  case 'd':
+    deleteSelection();
+    E.mode = DIM_NORMAL_MODE;
+    break;
   default:
     if (handleMovementKey(key)) {
       setEndVisualMark();
