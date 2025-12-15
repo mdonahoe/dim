@@ -1574,6 +1574,91 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
   }
 }
 
+void editorJumpToMatchingBrace() {
+  // Check if current character is an opening or closing brace
+  if (E.cy >= E.numrows)
+    return;
+
+  erow *row = &E.row[E.cy];
+  if (E.cx >= row->size)
+    return;
+
+  char current_char = row->chars[E.cx];
+  char target_char = '\0';
+  int direction = 0;  // 1 for forward, -1 for backward
+
+  // Determine what brace we're on and what to search for
+  switch (current_char) {
+  case '{':
+    target_char = '}';
+    direction = 1;
+    break;
+  case '}':
+    target_char = '{';
+    direction = -1;
+    break;
+  case '(':
+    target_char = ')';
+    direction = 1;
+    break;
+  case ')':
+    target_char = '(';
+    direction = -1;
+    break;
+  case '[':
+    target_char = ']';
+    direction = 1;
+    break;
+  case ']':
+    target_char = '[';
+    direction = -1;
+    break;
+  default:
+    return;  // Not on a brace
+  }
+
+  // Search for matching brace with nesting support
+  int depth = 1;
+  int x = E.cx + direction;
+  int y = E.cy;
+
+  while (y >= 0 && y < E.numrows) {
+    erow *search_row = &E.row[y];
+    
+    // Set bounds for this row
+    if (direction == 1) {
+      if (x >= search_row->size) {
+        y++;
+        x = 0;
+        continue;
+      }
+    } else {
+      if (x < 0) {
+        y--;
+        if (y >= 0)
+          x = E.row[y].size - 1;
+        continue;
+      }
+    }
+
+    char c = search_row->chars[x];
+
+    // Check for matching brace or nested brace
+    if (c == target_char) {
+      depth--;
+      if (depth == 0) {
+        E.cy = y;
+        E.cx = x;
+        return;
+      }
+    } else if (c == current_char) {
+      depth++;
+    }
+
+    x += direction;
+  }
+}
+
 void editorMoveCursor(int key) {
   erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
   switch (key) {
@@ -1752,6 +1837,10 @@ void handleVisualModeKeypress(int key) {
     deleteSelection();
     E.mode = DIM_NORMAL_MODE;
     break;
+  case '%':
+    editorJumpToMatchingBrace();
+    setEndVisualMark();
+    break;
   default:
     if (handleMovementKey(key, prev)) {
       setEndVisualMark();
@@ -1854,6 +1943,9 @@ void handleNormalModeKeypress(int key) {
     break;
   case 'p':
     pasteClipboard();
+    break;
+  case '%':
+    editorJumpToMatchingBrace();
     break;
   default:
     break;
