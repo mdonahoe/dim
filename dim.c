@@ -1471,10 +1471,10 @@ void editorDrawRows(struct abuf *ab) {
 void editorDrawStatusBar(struct abuf *ab) {
   abAppend(ab, "\x1b[7m", 4);
   char status[80], rstatus[80];
-  int len = snprintf(status, sizeof(status), "%.20s - %d lines %s -- %s %d",
+  int len = snprintf(status, sizeof(status), "%.20s - %d lines %s -- %s %d -- %d",
                      E.filename ? E.filename : "[No Name]", E.numrows,
                      E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT",
-                     E.dirty ? "(modified)" : "", E.v_end.y - E.v_start.y);
+                     E.dirty ? "(modified)" : "", E.v_end.y - E.v_start.y, E.prevNormalKey);
   int rlen =
       snprintf(rstatus, sizeof(status), "%s | %d/%d",
                E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);
@@ -1702,7 +1702,7 @@ void pasteClipboard() {
 }
 
 // Returns 1 if key was a movement command, 0 otherwise
-int handleMovementKey(int key) {
+int handleMovementKey(int key, int prev) {
   switch (key) {
   case 'j':
     editorMoveCursor(ARROW_DOWN);
@@ -1717,6 +1717,7 @@ int handleMovementKey(int key) {
     editorMoveCursor(ARROW_RIGHT);
     return 1;
   case 'w':
+    if (prev != 0) return 0;
     editorMoveWordForward();
     return 1;
   case '0':
@@ -1737,6 +1738,7 @@ int handleMovementKey(int key) {
 }
 
 void handleVisualModeKeypress(int key) {
+  int prev = 0; // TODO
   switch (key) {
   case 'v':
     E.mode = DIM_NORMAL_MODE;
@@ -1751,7 +1753,7 @@ void handleVisualModeKeypress(int key) {
     E.mode = DIM_NORMAL_MODE;
     break;
   default:
-    if (handleMovementKey(key)) {
+    if (handleMovementKey(key, prev)) {
       setEndVisualMark();
     }
     break;
@@ -1763,7 +1765,7 @@ void handleNormalModeKeypress(int key) {
   E.prevNormalKey = 0;
 
   // Try to handle as movement first
-  if (handleMovementKey(key)) {
+  if (handleMovementKey(key, prev)) {
     return;
   }
 
@@ -1818,6 +1820,9 @@ void handleNormalModeKeypress(int key) {
     case 'i':
       editorDelSurroundingWord();
       E.mode = DIM_INSERT_MODE;
+      break;
+    case 'd':
+      editorDelToEndOfWord();
       break;
     case 0:
       editorMoveWordForward();
