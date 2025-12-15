@@ -782,16 +782,16 @@ void editorRowDelChar(erow *row, int at) {
 }
 
 void editorRowDelSpan(erow *row, int start, int end) {
-    if (start >= end || start < 0 || end >= row->size) {
-        return;
-    }
-    memmove(&row->chars[start], &row->chars[end], row->size - end);
-    row->size = row->size - end + start;
-    editorUpdateRow(row);
-    E.dirty++;
-    if (E.syntax && E.syntax->ts_language) {
-        editorReparseTreeSitter();
-    }
+  if (start >= end || start < 0 || end >= row->size) {
+    return;
+  }
+  memmove(&row->chars[start], &row->chars[end], row->size - end);
+  row->size = row->size - end + start;
+  editorUpdateRow(row);
+  E.dirty++;
+  if (E.syntax && E.syntax->ts_language) {
+    editorReparseTreeSitter();
+  }
 }
 
 /*** editor operations ***/
@@ -858,7 +858,7 @@ void editorMoveWordForward() {
   erow *row = &E.row[E.cy];
 
   E.cx = getEndOfWord(E.cx, row);
-  
+
   // 2. If we landed on whitespace, skip it to find the start of the next word
   if (E.cx < row->size &&
       get_char_class(row->chars[E.cx]) == CLASS_WHITESPACE) {
@@ -1233,34 +1233,45 @@ void editorScroll(void) {
 }
 
 int isInVisualSelection(int x, int y) {
-  if (E.mode != DIM_VISUAL_MODE) return 0;
-  
+  if (E.mode != DIM_VISUAL_MODE)
+    return 0;
+
   int start_y = E.v_start.y;
   int end_y = E.v_end.y;
   int start_x = E.v_start.x;
   int end_x = E.v_end.x;
-  
+
   // Normalize so start is before end
   if (start_y > end_y || (start_y == end_y && start_x > end_x)) {
-    int tmp = start_y; start_y = end_y; end_y = tmp;
-    tmp = start_x; start_x = end_x; end_x = tmp;
+    int tmp = start_y;
+    start_y = end_y;
+    end_y = tmp;
+    tmp = start_x;
+    start_x = end_x;
+    end_x = tmp;
   }
-  
-  if (y < start_y || y > end_y) return 0;
-  if (y == start_y && y == end_y) return x >= start_x && x <= end_x;
-  if (y == start_y) return x >= start_x;
-  if (y == end_y) return x <= end_x;
+
+  if (y < start_y || y > end_y)
+    return 0;
+  if (y == start_y && y == end_y)
+    return x >= start_x && x <= end_x;
+  if (y == start_y)
+    return x >= start_x;
+  if (y == end_y)
+    return x <= end_x;
   return 1;
 }
 
 // Returns the length of search match at position x, or 0 if no match
 int getSearchMatchLength(int x, int y) {
-  if (!E.searchString) return 0;
-  if (y < 0 || y >= E.numrows) return 0;
-  
+  if (!E.searchString)
+    return 0;
+  if (y < 0 || y >= E.numrows)
+    return 0;
+
   erow *row = &E.row[y];
   int search_len = strlen(E.searchString);
-  
+
   // Check if x position starts a search match
   if (x + search_len <= row->rsize) {
     if (strncmp(&row->render[x], E.searchString, search_len) == 0) {
@@ -1303,12 +1314,12 @@ void editorDrawRows(struct abuf *ab) {
       int current_color = -1;
       int in_selection = 0;
       int in_search = 0;
-      int search_match_end = 0;  // Track when current search match ends
+      int search_match_end = 0; // Track when current search match ends
       int j;
       for (j = 0; j < len; j++) {
         int char_x = E.coloff + j;
         int is_selected = isInVisualSelection(char_x, filerow);
-        
+
         // Determine if this character is in a search match
         int is_search = 0;
         if (char_x < search_match_end) {
@@ -1322,10 +1333,11 @@ void editorDrawRows(struct abuf *ab) {
             search_match_end = char_x + match_len;
           }
         }
-        
+
         // Search matches take priority over visual selection
         if (is_search && !in_search) {
-          abAppend(ab, "\x1b[48;5;226m\x1b[30m", 17); // bright yellow background, black text
+          abAppend(ab, "\x1b[48;5;226m\x1b[30m",
+                   17); // bright yellow background, black text
           in_search = 1;
         } else if (!is_search && in_search) {
           // If we're leaving search, check if we enter selection
@@ -1333,7 +1345,8 @@ void editorDrawRows(struct abuf *ab) {
             abAppend(ab, "\x1b[48;5;237m", 11);
             in_selection = 1;
           } else {
-            abAppend(ab, "\x1b[49m\x1b[39m", 10); // reset background and foreground
+            abAppend(ab, "\x1b[49m\x1b[39m",
+                     10); // reset background and foreground
           }
           in_search = 0;
           // Restore syntax color if not in selection
@@ -1348,7 +1361,7 @@ void editorDrawRows(struct abuf *ab) {
           abAppend(ab, "\x1b[49m", 5); // reset background
           in_selection = 0;
         }
-        
+
         if (iscntrl(c[j])) {
           char sym = (c[j] < 26) ? '@' + c[j] : '?';
           abAppend(ab, "\x1b[7m", 4);
@@ -1400,7 +1413,7 @@ void editorDrawStatusBar(struct abuf *ab) {
   int len = snprintf(status, sizeof(status), "%.20s - %d lines %s -- %s %d",
                      E.filename ? E.filename : "[No Name]", E.numrows,
                      E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT",
-  					 E.dirty ? "(modified)" : "", E.v_end.y - E.v_start.y);
+                     E.dirty ? "(modified)" : "", E.v_end.y - E.v_start.y);
   int rlen =
       snprintf(rstatus, sizeof(status), "%s | %d/%d",
                E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);
@@ -1544,16 +1557,15 @@ void editorMoveCursor(int key) {
   }
 }
 
-
 void setEndVisualMark() {
-    E.v_end.x = E.cx;
-    E.v_end.y = E.cy;
+  E.v_end.x = E.cx;
+  E.v_end.y = E.cy;
 }
 
 void startVisualMarks() {
-    E.v_start.x = E.cx;
-    E.v_start.y = E.cy;
-    setEndVisualMark();
+  E.v_start.x = E.cx;
+  E.v_start.y = E.cy;
+  setEndVisualMark();
 }
 
 void yankSelection() {
@@ -1561,31 +1573,38 @@ void yankSelection() {
   int end_y = E.v_end.y;
   int start_x = E.v_start.x;
   int end_x = E.v_end.x;
-  
+
   // Normalize so start is before end
   if (start_y > end_y || (start_y == end_y && start_x > end_x)) {
-    int tmp = start_y; start_y = end_y; end_y = tmp;
-    tmp = start_x; start_x = end_x; end_x = tmp;
+    int tmp = start_y;
+    start_y = end_y;
+    end_y = tmp;
+    tmp = start_x;
+    start_x = end_x;
+    end_x = tmp;
   }
-  
+
   // Calculate buffer size needed
   int buflen = 0;
   for (int y = start_y; y <= end_y; y++) {
-    if (y >= E.numrows) break;
+    if (y >= E.numrows)
+      break;
     int x_start = (y == start_y) ? start_x : 0;
     int x_end = (y == end_y) ? end_x : E.row[y].size;
     buflen += (x_end - x_start);
-    if (y < end_y) buflen++; // for newline
+    if (y < end_y)
+      buflen++; // for newline
   }
-  
+
   // Allocate and copy
   free(E.clipboard);
   E.clipboard = malloc(buflen + 1);
   E.clipboard_len = buflen;
-  
+
   int pos = 0;
   for (int y = start_y; y <= end_y; y++) {
-    if (y >= E.numrows) break;
+    if (y >= E.numrows)
+      break;
     int x_start = (y == start_y) ? start_x : 0;
     int x_end = (y == end_y) ? end_x : E.row[y].size;
     int len = x_end - x_start;
@@ -1596,7 +1615,7 @@ void yankSelection() {
     }
   }
   E.clipboard[pos] = '\0';
-  
+
   editorSetStatusMessage("Yanked %d chars", buflen);
 }
 
@@ -1605,10 +1624,10 @@ void pasteClipboard() {
     editorSetStatusMessage("Clipboard is empty");
     return;
   }
-  
+
   // Insert below cursor
   editorInsertNewLine();
-  
+
   // Insert clipboard content
   for (int i = 0; i < E.clipboard_len; i++) {
     if (E.clipboard[i] == '\n') {
@@ -1674,21 +1693,21 @@ void handleVisualModeKeypress(int key) {
 void handleNormalModeKeypress(int key) {
   int prev = E.prevNormalKey;
   E.prevNormalKey = 0;
-  
+
   // Try to handle as movement first
   if (handleMovementKey(key)) {
     return;
   }
-  
+
   switch (key) {
   case 'c':
     E.prevNormalKey = 'c';
     break;
   case 'i':
     if (prev == 'c') {
-        E.prevNormalKey = 'i';
-    } else{
-    E.mode = DIM_INSERT_MODE;
+      E.prevNormalKey = 'i';
+    } else {
+      E.mode = DIM_INSERT_MODE;
     }
     break;
   case 'o':
@@ -1725,18 +1744,18 @@ void handleNormalModeKeypress(int key) {
   case 'w':
     switch (prev) {
     case 'c':
-        editorDelToEndOfWord();
-        E.mode = DIM_INSERT_MODE;
-        break;
+      editorDelToEndOfWord();
+      E.mode = DIM_INSERT_MODE;
+      break;
     case 'i':
-        editorDelSurroundingWord();
-        E.mode = DIM_INSERT_MODE;
-        break;
+      editorDelSurroundingWord();
+      E.mode = DIM_INSERT_MODE;
+      break;
     case 0:
-        editorMoveWordForward();
-        break;
+      editorMoveWordForward();
+      break;
     default:
-        break;
+      break;
     }
     break;
   case ':':
@@ -1767,7 +1786,6 @@ void handleNormalModeKeypress(int key) {
     break;
   }
 }
-
 
 void handleInsertModeKeypress(int c) {
   static int quit_times = DIM_QUIT_TIMES;
