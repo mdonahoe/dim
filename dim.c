@@ -781,7 +781,7 @@ void editorDelSpan(markpt a, markpt b) {
   if (start_y < end_y) {
     erow *row = &E.row[end_y];
     if (end_x < row->size - 1) {
-        editorRowDelSpan(row, 0, end_x + 1);
+      editorRowDelSpan(row, 0, end_x + 1);
     } else {
       editorDelRow(end_y);
     }
@@ -1471,10 +1471,11 @@ void editorDrawRows(struct abuf *ab) {
 void editorDrawStatusBar(struct abuf *ab) {
   abAppend(ab, "\x1b[7m", 4);
   char status[80], rstatus[80];
-  int len = snprintf(status, sizeof(status), "%.20s - %d lines %s -- %s %d -- %d",
-                     E.filename ? E.filename : "[No Name]", E.numrows,
-                     E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT",
-                     E.dirty ? "(modified)" : "", E.v_end.y - E.v_start.y, E.prevNormalKey);
+  int len = snprintf(
+      status, sizeof(status), "%.20s - %d lines %s -- %s %d -- %d",
+      E.filename ? E.filename : "[No Name]", E.numrows,
+      E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT",
+      E.dirty ? "(modified)" : "", E.v_end.y - E.v_start.y, E.prevNormalKey);
   int rlen =
       snprintf(rstatus, sizeof(status), "%s | %d/%d",
                E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);
@@ -1585,7 +1586,7 @@ void editorJumpToMatchingBrace() {
 
   char current_char = row->chars[E.cx];
   char target_char = '\0';
-  int direction = 0;  // 1 for forward, -1 for backward
+  int direction = 0; // 1 for forward, -1 for backward
 
   // Determine what brace we're on and what to search for
   switch (current_char) {
@@ -1614,7 +1615,7 @@ void editorJumpToMatchingBrace() {
     direction = -1;
     break;
   default:
-    return;  // Not on a brace
+    return; // Not on a brace
   }
 
   // Search for matching brace with nesting support
@@ -1624,7 +1625,7 @@ void editorJumpToMatchingBrace() {
 
   while (y >= 0 && y < E.numrows) {
     erow *search_row = &E.row[y];
-    
+
     // Set bounds for this row
     if (direction == 1) {
       if (x >= search_row->size) {
@@ -1802,7 +1803,8 @@ int handleMovementKey(int key, int prev) {
     editorMoveCursor(ARROW_RIGHT);
     return 1;
   case 'w':
-    if (prev != 0) return 0;
+    if (prev != 0)
+      return 0;
     editorMoveWordForward();
     return 1;
   case '0':
