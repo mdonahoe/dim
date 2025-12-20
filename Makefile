@@ -48,7 +48,6 @@ dim: dim.c
 		tree-sitter/grammars/python/src/scanner.c \
 		-I tree-sitter/lib/include \
 		-I tree-sitter/lib/src \
-		-I tree-sitter/lib/src/wasm \
 		-I tree-sitter/grammars/python/src \
 		-D_DEFAULT_SOURCE -D_DARWIN_C_SOURCE \
 		-Wno-pedantic -Wno-unused-result -Wno-unused-value \
