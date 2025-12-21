@@ -1352,9 +1352,6 @@ struct abuf {
   int len;
 };
 
-#define ABUF_INIT                                                              \
-  { NULL, 0 }
-
 void abAppend(struct abuf *ab, const char *s, int len) {
   char *new = realloc(ab->b, ab->len + len);
   if (new == NULL)
@@ -1601,7 +1598,7 @@ void editorDrawMessageBar(struct abuf *ab) {
 
 void editorRefreshScreen(void) {
   editorScroll();
-  struct abuf ab = ABUF_INIT;
+  struct abuf ab = { NULL, 0};
   abAppend(&ab, "\x1b[?25l", 6);
   // abAppend(&ab, "\x1b[2J", 4);
   abAppend(&ab, "\x1b[H", 3);
