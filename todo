@@ -1,0 +1,3 @@
+[ ] yank line yy and paste it
+[ ] tab should insert 4 spaces, unless the file already contains tabs?
+[ ] :e file<tab> should tab complete then open a file relative to teh current buffer.
