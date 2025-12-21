@@ -5,4 +5,8 @@ Started by following the tutorial here:
 
 https://viewsourcecode.org/snaptoken/kilo/index.html
 
-Now I'm attempting to convert it to a modal vim-like editor.
+Then added some basic vim-like support.
+
+Goal is to replace my usage of nvim + plugins
+with a completely compiled binary i can drop in and use anywhere
+just for me ;-)
