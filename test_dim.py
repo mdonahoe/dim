@@ -435,5 +435,69 @@ class TestDimNavigation(unittest.TestCase):
         self.assertIn("4/5", result.output, "Expected cursor at line 4/5 after 3 down arrows")
 
 
+class TestDimYankPaste(unittest.TestCase):
+    """Tests for yank (yy) and paste (p) functionality."""
+
+    def test_yank_line_and_paste(self):
+        """Test that yy yanks current line and p pastes it below."""
+        # Open hello_world.txt, yank first line with yy, move down, paste with p
+        input_str = "[sleep:50]yyjp[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After yanking line 1 "Hello, World!" and pasting after line 2,
+        # we should see "Hello, World!" appear twice in the output
+        # Count occurrences of "Hello, World!"
+        count = result.output.count("Hello, World!")
+        self.assertGreaterEqual(count, 2,
+            f"Expected 'Hello, World!' to appear at least twice after yy + p, found {count} times")
+
+    def test_yank_line_shows_message(self):
+        """Test that yy shows a 'yanked' message in status bar."""
+        # Open file and yank a line
+        input_str = "[sleep:50]yy[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should show confirmation that line was yanked
+        self.assertIn("yank", result.output.lower(),
+            "Expected 'yank' message in status bar after yy")
+
+    def test_paste_without_yank(self):
+        """Test that p does nothing or shows message when nothing is yanked."""
+        # Open file and try to paste without yanking first
+        input_str = "[sleep:50]p[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # File should remain unchanged (still 5 lines)
+        self.assertIn("5 lines", result.output,
+            "Expected file to still have 5 lines when paste with empty register")
+
+
 if __name__ == "__main__":
     unittest.main()
