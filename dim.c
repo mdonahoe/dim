@@ -111,6 +111,7 @@ struct editorConfig {
   TSTree *ts_tree;
   int mode;
   int prevNormalKey;
+  int repeatCount;  // For number prefix (e.g., 3j, 5x)
   char *searchString;
   int searchIndex;
   int searchDirection;
@@ -1779,7 +1780,7 @@ void editorMoveCursor(int key) {
     }
     break;
   case ARROW_DOWN:
-    if (E.cy < E.numrows) {
+    if (E.cy < E.numrows - 1) {
       E.cy++;
     }
     break;
@@ -1909,7 +1910,7 @@ int handleMovementKey(int key, int prev) {
     // 'g' needs special handling for 'gg', so return 0 to let caller handle it
     return 0;
   case 'G':
-    E.cy = E.numrows;
+    E.cy = E.numrows > 0 ? E.numrows - 1 : 0;
     return 1;
   default:
     return 0;
@@ -1948,8 +1949,25 @@ void handleNormalModeKeypress(int key) {
   int prev = E.prevNormalKey;
   E.prevNormalKey = 0;
 
-  // Try to handle as movement first
+  // Handle digit keys for repeat count
+  if (key >= '1' && key <= '9') {
+    E.repeatCount = E.repeatCount * 10 + (key - '0');
+    return;
+  }
+  if (key == '0' && E.repeatCount > 0) {
+    E.repeatCount = E.repeatCount * 10;
+    return;
+  }
+
+  // Get the repeat count (default to 1 if not set)
+  int count = E.repeatCount > 0 ? E.repeatCount : 1;
+  E.repeatCount = 0;  // Reset for next command
+
+  // Try to handle as movement first (with repeat)
   if (handleMovementKey(key, prev)) {
+    for (int i = 1; i < count; i++) {
+      handleMovementKey(key, 0);
+    }
     return;
   }
 
@@ -1973,17 +1991,22 @@ void handleNormalModeKeypress(int key) {
     break;
   case 'd':
     if (prev == 'd') {
-      // delete row
+      // delete row(s)
       editorPushUndoState();
-      editorDelRow(E.cy);
+      for (int i = 0; i < count && E.cy < E.numrows; i++) {
+        editorDelRow(E.cy);
+      }
     } else {
       E.prevNormalKey = key;
+      E.repeatCount = count;  // Preserve count for dd
     }
     break;
   case 'x':
-    // delete char and remain
+    // delete char(s) and remain
     editorPushUndoState();
-    editorXChar();
+    for (int i = 0; i < count; i++) {
+      editorXChar();
+    }
     break;
   case 'A':
     editorMoveCursor(END_KEY);
@@ -2166,6 +2189,7 @@ void initEditor(void) {
   E.ts_tree = NULL;
   E.mode = DIM_NORMAL_MODE;
   E.prevNormalKey = 0;
+  E.repeatCount = 0;
   E.searchString = NULL;
   E.searchIndex = 0;
   E.searchDirection = 1;
