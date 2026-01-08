@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <time.h>
+#include <sys/time.h>
 #include <tree_sitter/api.h>
 #include <unistd.h>
 
@@ -122,6 +123,8 @@ struct editorConfig {
   undoState *undo_stack;
   int undo_stack_size;
   int undo_stack_capacity;
+  char pendingInsertKey;  // For jj escape detection
+  long pendingInsertTimeMs;  // Timestamp in milliseconds for jj timing
 };
 
 struct editorConfig E;
@@ -182,6 +185,12 @@ void editorPushUndoState(void);
 void editorUndo(void);
 
 /*** terminal ***/
+
+long getCurrentTimeMs(void) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (long)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
+}
 
 void clearScreen(void) {
   (void)write(STDOUT_FILENO, "\x1b[2J", 4);
@@ -2058,6 +2067,32 @@ void handleNormalModeKeypress(int key) {
 
 void handleInsertModeKeypress(int c) {
   static int quit_times = DIM_QUIT_TIMES;
+
+  // Handle jj escape sequence
+  #define JJ_TIMEOUT_MS 150
+  if (c == 'j') {
+    long now = getCurrentTimeMs();
+    if (E.pendingInsertKey == 'j' && (now - E.pendingInsertTimeMs) < JJ_TIMEOUT_MS) {
+      // Second j within timeout - escape to normal mode
+      // Delete the first j that was inserted
+      editorDelChar();
+      editorPushUndoState();
+      E.mode = DIM_NORMAL_MODE;
+      E.pendingInsertKey = 0;
+      quit_times = DIM_QUIT_TIMES;
+      return;
+    }
+    // First j or timeout expired - insert it and mark as pending
+    editorInsertChar(c);
+    E.pendingInsertKey = 'j';
+    E.pendingInsertTimeMs = now;
+    quit_times = DIM_QUIT_TIMES;
+    return;
+  }
+
+  // Any other key clears the pending j
+  E.pendingInsertKey = 0;
+
   switch (c) {
   case '\r':
     editorInsertNewLine();
@@ -2175,6 +2210,8 @@ void initEditor(void) {
   E.undo_stack = NULL;
   E.undo_stack_size = 0;
   E.undo_stack_capacity = 0;
+  E.pendingInsertKey = 0;
+  E.pendingInsertTimeMs = 0;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1)
     die("getWindowSize");
