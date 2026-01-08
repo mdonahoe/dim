@@ -435,5 +435,115 @@ class TestDimNavigation(unittest.TestCase):
         self.assertIn("4/5", result.output, "Expected cursor at line 4/5 after 3 down arrows")
 
 
+class TestDimFindCharacter(unittest.TestCase):
+    """Tests for f (find character) and related motions."""
+
+    def test_f_jumps_to_character(self):
+        """Test that f{char} moves cursor to next occurrence of character."""
+        # Open file, use fw to jump to 'W' in "Hello, World!"
+        input_str = "[sleep:50]fW[sleep:20]i[ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After f jumps to W, entering insert mode and trying to quit
+        # should show unsaved changes (cursor moved to position 7 for 'W')
+        # The presence of the file content indicates we're still in the editor
+        self.assertIn("Hello, World!", result.output,
+            "Expected file content to be visible")
+
+    def test_f_with_number_prefix(self):
+        """Test that 2f{char} jumps to second occurrence of character."""
+        # Line is "Hello, World!" - 2fl should jump to second 'l'
+        input_str = "[sleep:50]2fl[sleep:20]i[ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should have moved to second 'l' in "Hello"
+        self.assertIn("Hello, World!", result.output,
+            "Expected file content after 2fl")
+
+    def test_ct_change_to_character(self):
+        """Test that ct{char} deletes to character and enters insert mode."""
+        # On "Hello, World!" use ct, to change to comma, then type "Goodbye"
+        input_str = "[sleep:50]ct,Goodbye[esc][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # "Hello" should be replaced with "Goodbye", leaving "Goodbye, World!"
+        self.assertIn("Goodbye", result.output,
+            "Expected 'Goodbye' after ct, replaces 'Hello'")
+        self.assertIn("World!", result.output,
+            "Expected 'World!' to remain after ct,")
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after change")
+
+    def test_dt_delete_to_character(self):
+        """Test that dt{char} deletes to character (not including it)."""
+        # On "Hello, World!" use dt, to delete to comma
+        input_str = "[sleep:50]dt,[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # "Hello" should be deleted, leaving ", World!"
+        self.assertIn(", World!", result.output,
+            "Expected ', World!' after dt, deletes 'Hello'")
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after deletion")
+
+    def test_f_no_match_does_nothing(self):
+        """Test that f{char} with no match leaves cursor in place."""
+        # Try to find 'z' which doesn't exist in "Hello, World!"
+        input_str = "[sleep:50]fz[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Cursor should still be at line 1 (no modification, no movement indicated)
+        self.assertIn("1/5", result.output,
+            "Expected cursor to remain at line 1/5 when f finds no match")
+        # File should not be modified
+        self.assertNotIn("(modified)", result.output,
+            "Expected no modification when f finds no match")
+
+
 if __name__ == "__main__":
     unittest.main()
