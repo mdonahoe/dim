@@ -435,5 +435,87 @@ class TestDimNavigation(unittest.TestCase):
         self.assertIn("4/5", result.output, "Expected cursor at line 4/5 after 3 down arrows")
 
 
+class TestDimJJEscape(unittest.TestCase):
+    """Tests for jj to escape from insert mode."""
+
+    def test_jj_escapes_insert_mode(self):
+        """Test that typing jj quickly in insert mode escapes to normal mode."""
+        # Enter insert mode, type some text, then jj to escape, then :q to quit
+        input_str = "[sleep:50]ihello jj:q[enter]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # If jj worked, we should see "hello " (without jj) in the content
+        # and the :q command should have worked (process should exit or show command)
+        # The jj should not appear in the text if it triggered escape
+        self.assertIn("hello", result.output,
+            "Expected 'hello' to appear in content")
+        # If jj escaped, then :q should be interpreted as a command
+        # Either the editor quit or we see a save warning
+        command_worked = (
+            result.did_exit or
+            "unsaved" in result.output.lower() or
+            "warning" in result.output.lower()
+        )
+        self.assertTrue(command_worked,
+            "Expected jj to escape insert mode and :q to be interpreted as command")
+
+    def test_jj_does_not_escape_when_slow(self):
+        """Test that j followed by slow j does not escape insert mode."""
+        # Enter insert mode, type j, wait, type j - should insert both j's
+        input_str = "[sleep:50]ij[sleep:200]j[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Both j's should appear in the content since they were typed slowly
+        self.assertIn("jj", result.output,
+            "Expected 'jj' to appear in content when typed slowly")
+        # Should show unsaved changes warning (still in insert mode)
+        self.assertIn("unsaved", result.output.lower(),
+            "Expected unsaved changes warning (still has content)")
+
+    def test_jj_in_middle_of_text(self):
+        """Test that jj works even when typed in the middle of text."""
+        # Type some text, then jj, then more commands
+        input_str = "[sleep:50]itestjj:q[enter]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should see "test" but not "jj" in content (jj triggered escape)
+        self.assertIn("test", result.output,
+            "Expected 'test' in content")
+        # :q should be a command, not text
+        command_worked = (
+            result.did_exit or
+            "unsaved" in result.output.lower()
+        )
+        self.assertTrue(command_worked,
+            "Expected jj to escape and :q to work as command")
+
+
 if __name__ == "__main__":
     unittest.main()
