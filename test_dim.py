@@ -435,5 +435,110 @@ class TestDimNavigation(unittest.TestCase):
         self.assertIn("4/5", result.output, "Expected cursor at line 4/5 after 3 down arrows")
 
 
+class TestDimNumberRepeat(unittest.TestCase):
+    """Tests for number prefix to repeat commands."""
+
+    def test_number_j_moves_down_multiple_lines(self):
+        """Test that 3j moves cursor down 3 lines."""
+        # Open file with 5 lines, press 3j to move down 3 lines
+        input_str = "[sleep:50]3j[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should be on line 4 (started at line 1, moved down 3)
+        self.assertIn("4/5", result.output,
+            "Expected cursor at line 4/5 after 3j")
+
+    def test_number_k_moves_up_multiple_lines(self):
+        """Test that 2k moves cursor up 2 lines."""
+        # Open file, go to line 5, then press 2k to move up 2 lines
+        input_str = "[sleep:50]G2k[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Started at line 5 (G), moved up 2, should be at line 3
+        self.assertIn("3/5", result.output,
+            "Expected cursor at line 3/5 after G + 2k")
+
+    def test_number_x_deletes_multiple_chars(self):
+        """Test that 5x deletes 5 characters."""
+        # Open file, delete 5 characters with 5x
+        input_str = "[sleep:50]5x[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # "Hello, World!" should become ", World!" after deleting "Hello"
+        self.assertIn(", World!", result.output,
+            "Expected ', World!' after 5x deletes 'Hello'")
+        # Should show modified indicator
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after deletion")
+
+    def test_number_dd_deletes_multiple_lines(self):
+        """Test that 2dd deletes 2 lines."""
+        # Open file, delete 2 lines with 2dd
+        input_str = "[sleep:50]2dd[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After deleting first 2 lines, should have 3 lines remaining
+        self.assertIn("3 lines", result.output,
+            "Expected 3 lines remaining after 2dd on 5-line file")
+        # First line should now be what was line 3
+        self.assertIn("Line 3:", result.output,
+            "Expected 'Line 3:' to be visible (now first line)")
+
+    def test_large_number_repeat(self):
+        """Test that large numbers like 10j work correctly."""
+        # Open file, try to move down 10 lines (should stop at end)
+        input_str = "[sleep:50]10j[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should be at the last line (5/5) since file only has 5 lines
+        self.assertIn("5/5", result.output,
+            "Expected cursor at line 5/5 after 10j (capped at file end)")
+
+
 if __name__ == "__main__":
     unittest.main()
