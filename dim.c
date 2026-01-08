@@ -16,6 +16,7 @@
 #include <time.h>
 #include <tree_sitter/api.h>
 #include <unistd.h>
+#include <dirent.h>
 
 TSLanguage *tree_sitter_c(void);
 TSLanguage *tree_sitter_python(void);
@@ -180,6 +181,8 @@ char *editorRowsToString(int *buflen);
 void editorRowDelSpan(erow *row, int start, int end);
 void editorPushUndoState(void);
 void editorUndo(void);
+char *findFileCompletion(const char *prefix);
+void editorOpenFile(char *filename);
 
 /*** terminal ***/
 
@@ -1043,6 +1046,51 @@ void editorOpen(char *filename) {
   editorSelectSyntaxHighlight();
 }
 
+void editorClearBuffer(void) {
+  // Free all rows
+  for (int i = 0; i < E.numrows; i++) {
+    editorFreeRow(&E.row[i]);
+  }
+  free(E.row);
+  E.row = NULL;
+  E.numrows = 0;
+  E.cx = 0;
+  E.cy = 0;
+  E.rowoff = 0;
+  E.coloff = 0;
+  E.dirty = 0;
+}
+
+void editorOpenFile(char *filename) {
+  // Clear current buffer
+  editorClearBuffer();
+
+  // Free old filename and set new one
+  free(E.filename);
+  E.filename = strdup(filename);
+
+  // Try to open the file
+  FILE *fp = fopen(filename, "r");
+  if (!fp) {
+    editorSetStatusMessage("Can't open file: %s", filename);
+    return;
+  }
+
+  char *line = NULL;
+  size_t linecap = 0;
+  ssize_t linelen;
+  while ((linelen = getline(&line, &linecap, fp)) != -1) {
+    while (linelen > 0 &&
+           (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
+      linelen--;
+    editorInsertRow(E.numrows, line, linelen);
+  }
+  free(line);
+  fclose(fp);
+  E.dirty = 0;
+  editorSelectSyntaxHighlight();
+}
+
 void editorSave(void) {
   if (E.filename == NULL) {
     E.filename = editorPrompt("Save as: %s", NULL);
@@ -1089,6 +1137,10 @@ void exModeCallback(char *query, int key) {
 void exMode() {
   char *query = editorPrompt("ex: %s", exModeCallback);
 
+  if (query == NULL) {
+    return;
+  }
+
   if (strcmp(query, "q") == 0) {
     clearScreen();
     exit(0);
@@ -1098,8 +1150,16 @@ void exMode() {
     editorSave();
     clearScreen();
     exit(0);
-  } else {
+  } else if (strncmp(query, "e ", 2) == 0) {
+    // :e filename - open file
+    char *filename = query + 2;
+    // Skip leading whitespace
+    while (*filename == ' ') filename++;
+    if (*filename) {
+      editorOpenFile(filename);
+    }
   }
+  free(query);
 }
 
 static inline int is_word_char(int c) { return isalnum(c) || c == '_'; }
@@ -1625,6 +1685,40 @@ void editorSetStatusMessage(const char *fmt, ...) {
 
 /*** input ***/
 
+// File completion helper - finds files matching prefix
+// Returns longest common prefix of all matches
+char *findFileCompletion(const char *prefix) {
+  DIR *dir = opendir(".");
+  if (!dir) return NULL;
+
+  char *match = NULL;
+  size_t prefix_len = strlen(prefix);
+
+  struct dirent *entry;
+  while ((entry = readdir(dir)) != NULL) {
+    if (strncmp(entry->d_name, prefix, prefix_len) == 0) {
+      if (match == NULL) {
+        match = strdup(entry->d_name);
+      } else {
+        // Find common prefix between match and new entry
+        size_t i = 0;
+        while (match[i] && entry->d_name[i] && match[i] == entry->d_name[i]) {
+          i++;
+        }
+        match[i] = '\0';
+      }
+    }
+  }
+  closedir(dir);
+
+  // Only return if we found something longer than the original prefix
+  if (match && strlen(match) > prefix_len) {
+    return match;
+  }
+  free(match);
+  return NULL;
+}
+
 char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
   size_t bufsize = 128;
   char *buf = malloc(bufsize);
@@ -1652,6 +1746,23 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
         if (callback)
           callback(buf, c);
         return buf;
+      }
+    } else if (c == '\t') {
+      // Tab completion for :e command
+      if (strncmp(buf, "e ", 2) == 0) {
+        char *prefix = buf + 2;
+        char *completion = findFileCompletion(prefix);
+        if (completion) {
+          // Rebuild buffer with completed filename
+          size_t newlen = 2 + strlen(completion);
+          if (newlen >= bufsize) {
+            bufsize = newlen + 1;
+            buf = realloc(buf, bufsize);
+          }
+          strcpy(buf + 2, completion);
+          buflen = newlen;
+          free(completion);
+        }
       }
     } else if (!iscntrl(c) && c < 128) {
       if (buflen == bufsize - 1) {
