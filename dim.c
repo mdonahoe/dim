@@ -2041,6 +2041,22 @@ void handleNormalModeKeypress(int key) {
     E.mode = DIM_VISUAL_MODE;
     startVisualMarks();
     break;
+  case 'y':
+    if (prev == 'y') {
+      // yy - yank current line
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        free(E.clipboard);
+        E.clipboard = malloc(row->size + 1);
+        memcpy(E.clipboard, row->chars, row->size);
+        E.clipboard[row->size] = '\0';
+        E.clipboard_len = row->size;
+        editorSetStatusMessage("Yanked line: %d chars", row->size);
+      }
+    } else {
+      E.prevNormalKey = 'y';
+    }
+    break;
   case 'p':
     editorPushUndoState();
     pasteClipboard();
