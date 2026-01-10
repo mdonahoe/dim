@@ -51,6 +51,7 @@ dim: dim.c
 		-I tree-sitter/grammars/python/src \
 		-D_DEFAULT_SOURCE -D_DARWIN_C_SOURCE \
 		-Wno-pedantic -Wno-unused-result -Wno-unused-value \
+		-fmax-errors=10 \
 		$(LDFLAGS_DEBUG)
 
 asan: dim.c
