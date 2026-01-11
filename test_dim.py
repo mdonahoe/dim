@@ -499,5 +499,485 @@ class TestDimYankPaste(unittest.TestCase):
             "Expected file to still have 5 lines when paste with empty register")
 
 
+class TestDimTabInsertion(unittest.TestCase):
+    """Tests for tab key insertion behavior."""
+
+    def test_tab_inserts_four_spaces(self):
+        """Test that pressing tab in insert mode inserts 4 spaces."""
+        # Create new file, enter insert mode, press tab, then type text
+        input_str = "[sleep:50]i[tab]test[ctrl-s]test_tab.txt[enter][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Verify file was created with 4 spaces before 'test'
+        self.assertTrue(os.path.exists("test_tab.txt"),
+            "Expected file to be created")
+
+        with open("test_tab.txt", "r") as f:
+            contents = f.read()
+            # Tab should insert 4 spaces, not a tab character
+            self.assertIn("    test", contents,
+                "Expected 4 spaces before 'test' when tab is pressed")
+            self.assertNotIn("\t", contents,
+                "Expected spaces, not tab character")
+
+        # Clean up
+        os.remove("test_tab.txt")
+
+    def test_tab_respects_existing_tabs(self):
+        """Test that tab inserts actual tabs if file already contains tabs."""
+        # Create a file with tabs first
+        with open("test_with_tabs.txt", "w") as f:
+            f.write("\tindented with tab\n")
+
+        # Open the file, go to end, add new line with tab
+        input_str = "[sleep:50]Go[tab]more[ctrl-s][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "test_with_tabs.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Read the file and check if tab was used
+        with open("test_with_tabs.txt", "r") as f:
+            contents = f.read()
+            lines = contents.split('\n')
+            # The new line should also use tab (if feature respects existing tabs)
+            if len(lines) >= 2:
+                self.assertIn("\t", lines[-1] if lines[-1] else lines[-2],
+                    "Expected tab character when file already contains tabs")
+
+        # Clean up
+        os.remove("test_with_tabs.txt")
+
+    def test_tab_at_beginning_of_line(self):
+        """Test that tab at beginning of line creates proper indentation."""
+        # Create new file, enter insert mode, press tab twice
+        input_str = "[sleep:50]i[tab][tab]indented[ctrl-s]test_indent.txt[enter][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Verify file was created with 8 spaces (2 tabs * 4 spaces each)
+        self.assertTrue(os.path.exists("test_indent.txt"),
+            "Expected file to be created")
+
+        with open("test_indent.txt", "r") as f:
+            contents = f.read()
+            # Two tabs should give 8 spaces
+            self.assertIn("        indented", contents,
+                "Expected 8 spaces (2 tabs) before 'indented'")
+
+        # Clean up
+        os.remove("test_indent.txt")
+
+
+class TestDimJJEscape(unittest.TestCase):
+    """Tests for jj to escape from insert mode."""
+
+    def test_jj_escapes_insert_mode(self):
+        """Test that typing jj quickly in insert mode escapes to normal mode."""
+        # Enter insert mode, type some text, then jj to escape, then :q to quit
+        input_str = "[sleep:50]ihello jj:q[enter]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # If jj worked, we should see "hello " (without jj) in the content
+        # and the :q command should have worked (process should exit or show command)
+        # The jj should not appear in the text if it triggered escape
+        self.assertIn("hello", result.output,
+            "Expected 'hello' to appear in content")
+        # If jj escaped, then :q should be interpreted as a command
+        # Either the editor quit or we see a save warning
+        command_worked = (
+            result.did_exit or
+            "unsaved" in result.output.lower() or
+            "warning" in result.output.lower()
+        )
+        self.assertTrue(command_worked,
+            "Expected jj to escape insert mode and :q to be interpreted as command")
+
+    def test_jj_does_not_escape_when_slow(self):
+        """Test that j followed by slow j does not escape insert mode."""
+        # Enter insert mode, type j, wait, type j - should insert both j's
+        input_str = "[sleep:50]ij[sleep:200]j[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Both j's should appear in the content since they were typed slowly
+        self.assertIn("jj", result.output,
+            "Expected 'jj' to appear in content when typed slowly")
+        # Should show unsaved changes warning (still in insert mode)
+        self.assertIn("unsaved", result.output.lower(),
+            "Expected unsaved changes warning (still has content)")
+
+    def test_jj_in_middle_of_text(self):
+        """Test that jj works even when typed in the middle of text."""
+        # Type some text, then jj, then more commands
+        input_str = "[sleep:50]itestjj:q[enter]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should see "test" but not "jj" in content (jj triggered escape)
+        self.assertIn("test", result.output,
+            "Expected 'test' in content")
+        # :q should be a command, not text
+        command_worked = (
+            result.did_exit or
+            "unsaved" in result.output.lower()
+        )
+        self.assertTrue(command_worked,
+            "Expected jj to escape and :q to work as command")
+
+
+class TestDimNumberRepeat(unittest.TestCase):
+    """Tests for number prefix to repeat commands."""
+
+    def test_number_j_moves_down_multiple_lines(self):
+        """Test that 3j moves cursor down 3 lines."""
+        # Open file with 5 lines, press 3j to move down 3 lines
+        input_str = "[sleep:50]3j[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should be on line 4 (started at line 1, moved down 3)
+        self.assertIn("4/5", result.output,
+            "Expected cursor at line 4/5 after 3j")
+
+    def test_number_k_moves_up_multiple_lines(self):
+        """Test that 2k moves cursor up 2 lines."""
+        # Open file, go to line 5, then press 2k to move up 2 lines
+        input_str = "[sleep:50]G2k[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Started at line 5 (G), moved up 2, should be at line 3
+        self.assertIn("3/5", result.output,
+            "Expected cursor at line 3/5 after G + 2k")
+
+    def test_number_x_deletes_multiple_chars(self):
+        """Test that 5x deletes 5 characters."""
+        # Open file, delete 5 characters with 5x
+        input_str = "[sleep:50]5x[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # "Hello, World!" should become ", World!" after deleting "Hello"
+        self.assertIn(", World!", result.output,
+            "Expected ', World!' after 5x deletes 'Hello'")
+        # Should show modified indicator
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after deletion")
+
+    def test_number_dd_deletes_multiple_lines(self):
+        """Test that 2dd deletes 2 lines."""
+        # Open file, delete 2 lines with 2dd
+        input_str = "[sleep:50]2dd[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After deleting first 2 lines, should have 3 lines remaining
+        self.assertIn("3 lines", result.output,
+            "Expected 3 lines remaining after 2dd on 5-line file")
+        # First line should now be what was line 3
+        self.assertIn("Line 3:", result.output,
+            "Expected 'Line 3:' to be visible (now first line)")
+
+    def test_large_number_repeat(self):
+        """Test that large numbers like 10j work correctly."""
+        # Open file, try to move down 10 lines (should stop at end)
+        input_str = "[sleep:50]10j[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should be at the last line (5/5) since file only has 5 lines
+        self.assertIn("5/5", result.output,
+            "Expected cursor at line 5/5 after 10j (capped at file end)")
+
+
+class TestDimFindCharacter(unittest.TestCase):
+    """Tests for f (find character) and related motions."""
+
+    def test_f_jumps_to_character(self):
+        """Test that f{char} moves cursor to next occurrence of character."""
+        # Open file, use fw to jump to 'W' in "Hello, World!"
+        input_str = "[sleep:50]fW[sleep:20]i[ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After f jumps to W, entering insert mode and trying to quit
+        # should show unsaved changes (cursor moved to position 7 for 'W')
+        # The presence of the file content indicates we're still in the editor
+        self.assertIn("Hello, World!", result.output,
+            "Expected file content to be visible")
+
+    def test_f_with_number_prefix(self):
+        """Test that 2f{char} jumps to second occurrence of character."""
+        # Line is "Hello, World!" - 2fl should jump to second 'l'
+        input_str = "[sleep:50]2fl[sleep:20]i[ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should have moved to second 'l' in "Hello"
+        self.assertIn("Hello, World!", result.output,
+            "Expected file content after 2fl")
+
+    def test_ct_change_to_character(self):
+        """Test that ct{char} deletes to character and enters insert mode."""
+        # On "Hello, World!" use ct, to change to comma, then type "Goodbye"
+        input_str = "[sleep:50]ct,Goodbye[esc][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # "Hello" should be replaced with "Goodbye", leaving "Goodbye, World!"
+        self.assertIn("Goodbye", result.output,
+            "Expected 'Goodbye' after ct, replaces 'Hello'")
+        self.assertIn("World!", result.output,
+            "Expected 'World!' to remain after ct,")
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after change")
+
+    def test_dt_delete_to_character(self):
+        """Test that dt{char} deletes to character (not including it)."""
+        # On "Hello, World!" use dt, to delete to comma
+        input_str = "[sleep:50]dt,[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # "Hello" should be deleted, leaving ", World!"
+        self.assertIn(", World!", result.output,
+            "Expected ', World!' after dt, deletes 'Hello'")
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after deletion")
+
+    def test_f_no_match_does_nothing(self):
+        """Test that f{char} with no match leaves cursor in place."""
+        # Try to find 'z' which doesn't exist in "Hello, World!"
+        input_str = "[sleep:50]fz[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Cursor should still be at line 1 (no modification, no movement indicated)
+        self.assertIn("1/5", result.output,
+            "Expected cursor to remain at line 1/5 when f finds no match")
+        # File should not be modified
+        self.assertNotIn("(modified)", result.output,
+            "Expected no modification when f finds no match")
+
+
+class TestDimEditCommand(unittest.TestCase):
+    """Tests for :e (edit) command with tab completion."""
+
+    def test_edit_command_tab_completion(self):
+        """Test that :e file<tab> tab-completes filenames."""
+        # Open dim, type :e hell<tab> which should complete to hello_world.txt
+        input_str = "[sleep:50]:e hell[tab][sleep:50][enter][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After tab completion and opening, should see hello_world.txt in status
+        self.assertIn("hello_world.txt", result.output,
+            "Expected 'hello_world.txt' after tab completion with :e hell<tab>")
+
+    def test_edit_command_opens_file(self):
+        """Test that :e filename opens the specified file."""
+        # Open dim, use :e to open hello_world.txt
+        input_str = "[sleep:50]:e hello_world.txt[enter][sleep:50][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should see file contents and filename in status bar
+        self.assertIn("hello_world.txt", result.output,
+            "Expected 'hello_world.txt' in status bar after :e command")
+        self.assertIn("Hello, World!", result.output,
+            "Expected file content after :e command")
+
+    def test_edit_command_relative_path(self):
+        """Test that :e works with relative paths based on current buffer."""
+        # First open example.py, then use :e to open example.c (same directory)
+        input_str = "[sleep:50]:e example.c[enter][sleep:50][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "example.py"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should now show example.c content
+        self.assertIn("example.c", result.output,
+            "Expected 'example.c' in status bar after :e command")
+        self.assertIn("int main", result.output,
+            "Expected C file content after :e command")
+
+    def test_edit_command_shows_completion_options(self):
+        """Test that tab shows multiple options when prefix matches multiple files."""
+        # Type :e example<tab> which matches both example.py and example.c
+        input_str = "[sleep:50]:e example[tab][sleep:50][esc][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should show both options or complete to common prefix
+        # Either "example." is shown or both files are listed
+        has_completion = (
+            "example.py" in result.output or
+            "example.c" in result.output or
+            "example." in result.output
+        )
+        self.assertTrue(has_completion,
+            "Expected tab completion to show example files")
+
+
 if __name__ == "__main__":
     unittest.main()

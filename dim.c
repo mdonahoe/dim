@@ -14,8 +14,10 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <time.h>
+#include <sys/time.h>
 #include <tree_sitter/api.h>
 #include <unistd.h>
+#include <dirent.h>
 
 TSLanguage *tree_sitter_c(void);
 TSLanguage *tree_sitter_python(void);
@@ -111,6 +113,7 @@ struct editorConfig {
   TSTree *ts_tree;
   int mode;
   int prevNormalKey;
+  int repeatCount;  // For number prefix (e.g., 3j, 5x)
   char *searchString;
   int searchIndex;
   int searchDirection;
@@ -122,6 +125,8 @@ struct editorConfig {
   undoState *undo_stack;
   int undo_stack_size;
   int undo_stack_capacity;
+  char pendingInsertKey;  // For jj escape detection
+  long pendingInsertTimeMs;  // Timestamp in milliseconds for jj timing
 };
 
 struct editorConfig E;
@@ -180,8 +185,17 @@ char *editorRowsToString(int *buflen);
 void editorRowDelSpan(erow *row, int start, int end);
 void editorPushUndoState(void);
 void editorUndo(void);
+char *findFileCompletion(const char *prefix);
+void editorOpenFile(char *filename);
+char *editorPromptWithFileCompletion(char *prompt);
 
 /*** terminal ***/
+
+long getCurrentTimeMs(void) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (long)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
+}
 
 void clearScreen(void) {
   (void)write(STDOUT_FILENO, "\x1b[2J", 4);
@@ -1020,6 +1034,51 @@ char *editorRowsToString(int *buflen) {
   return buf;
 }
 
+void editorClearBuffer(void) {
+  // Free all rows
+  for (int i = 0; i < E.numrows; i++) {
+    editorFreeRow(&E.row[i]);
+  }
+  free(E.row);
+  E.row = NULL;
+  E.numrows = 0;
+  E.cx = 0;
+  E.cy = 0;
+  E.rowoff = 0;
+  E.coloff = 0;
+  E.dirty = 0;
+}
+
+void editorOpenFile(char *filename) {
+  // Clear current buffer
+  editorClearBuffer();
+
+  // Free old filename and set new one
+  free(E.filename);
+  E.filename = strdup(filename);
+
+  // Try to open the file
+  FILE *fp = fopen(filename, "r");
+  if (!fp) {
+    editorSetStatusMessage("Can't open file: %s", filename);
+    return;
+  }
+
+  char *line = NULL;
+  size_t linecap = 0;
+  ssize_t linelen;
+  while ((linelen = getline(&line, &linecap, fp)) != -1) {
+    while (linelen > 0 &&
+           (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
+      linelen--;
+    editorInsertRow(E.numrows, line, linelen);
+  }
+  free(line);
+  fclose(fp);
+  E.dirty = 0;
+  editorSelectSyntaxHighlight();
+}
+
 void editorOpen(char *filename) {
   free(E.filename);
   E.filename = strdup(filename);
@@ -1027,6 +1086,51 @@ void editorOpen(char *filename) {
   FILE *fp = fopen(filename, "r");
   if (!fp)
     die("fopen");
+
+  char *line = NULL;
+  size_t linecap = 0;
+  ssize_t linelen;
+  while ((linelen = getline(&line, &linecap, fp)) != -1) {
+    while (linelen > 0 &&
+           (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
+      linelen--;
+    editorInsertRow(E.numrows, line, linelen);
+  }
+  free(line);
+  fclose(fp);
+  E.dirty = 0;
+  editorSelectSyntaxHighlight();
+}
+
+void editorClearBuffer(void) {
+  // Free all rows
+  for (int i = 0; i < E.numrows; i++) {
+    editorFreeRow(&E.row[i]);
+  }
+  free(E.row);
+  E.row = NULL;
+  E.numrows = 0;
+  E.cx = 0;
+  E.cy = 0;
+  E.rowoff = 0;
+  E.coloff = 0;
+  E.dirty = 0;
+}
+
+void editorOpenFile(char *filename) {
+  // Clear current buffer
+  editorClearBuffer();
+
+  // Free old filename and set new one
+  free(E.filename);
+  E.filename = strdup(filename);
+
+  // Try to open the file
+  FILE *fp = fopen(filename, "r");
+  if (!fp) {
+    editorSetStatusMessage("Can't open file: %s", filename);
+    return;
+  }
 
   char *line = NULL;
   size_t linecap = 0;
@@ -1086,8 +1190,14 @@ void exModeCallback(char *query, int key) {
   }
 }
 
+void editorOpenFile(char *filename);  // Forward declaration
+
 void exMode() {
   char *query = editorPrompt("ex: %s", exModeCallback);
+
+  if (query == NULL) {
+    return;
+  }
 
   if (strcmp(query, "q") == 0) {
     clearScreen();
@@ -1098,8 +1208,25 @@ void exMode() {
     editorSave();
     clearScreen();
     exit(0);
-  } else {
+  } else if (strncmp(query, "e ", 2) == 0) {
+    // :e filename - open file
+    char *filename = query + 2;
+    // Skip leading whitespace
+    while (*filename == ' ') filename++;
+    if (*filename) {
+      editorOpenFile(filename);
+    }
+  } else if (strcmp(query, "e") == 0) {
+    // :e without filename - prompt for file with completion
+    free(query);
+    char *filename = editorPromptWithFileCompletion("Open file: %s");
+    if (filename && *filename) {
+      editorOpenFile(filename);
+      free(filename);
+    }
+    return;
   }
+  free(query);
 }
 
 static inline int is_word_char(int c) { return isalnum(c) || c == '_'; }
@@ -1625,6 +1752,40 @@ void editorSetStatusMessage(const char *fmt, ...) {
 
 /*** input ***/
 
+// File completion helper - finds files matching prefix
+// Returns longest common prefix of all matches
+char *findFileCompletion(const char *prefix) {
+  DIR *dir = opendir(".");
+  if (!dir) return NULL;
+
+  char *match = NULL;
+  size_t prefix_len = strlen(prefix);
+
+  struct dirent *entry;
+  while ((entry = readdir(dir)) != NULL) {
+    if (strncmp(entry->d_name, prefix, prefix_len) == 0) {
+      if (match == NULL) {
+        match = strdup(entry->d_name);
+      } else {
+        // Find common prefix between match and new entry
+        size_t i = 0;
+        while (match[i] && entry->d_name[i] && match[i] == entry->d_name[i]) {
+          i++;
+        }
+        match[i] = '\0';
+      }
+    }
+  }
+  closedir(dir);
+
+  // Only return if we found something longer than the original prefix
+  if (match && strlen(match) > prefix_len) {
+    return match;
+  }
+  free(match);
+  return NULL;
+}
+
 char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
   size_t bufsize = 128;
   char *buf = malloc(bufsize);
@@ -1653,6 +1814,23 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
           callback(buf, c);
         return buf;
       }
+    } else if (c == '\t') {
+      // Tab completion for :e command
+      if (strncmp(buf, "e ", 2) == 0) {
+        char *prefix = buf + 2;
+        char *completion = findFileCompletion(prefix);
+        if (completion) {
+          // Rebuild buffer with completed filename
+          size_t newlen = 2 + strlen(completion);
+          if (newlen >= bufsize) {
+            bufsize = newlen + 1;
+            buf = realloc(buf, bufsize);
+          }
+          strcpy(buf + 2, completion);
+          buflen = newlen;
+          free(completion);
+        }
+      }
     } else if (!iscntrl(c) && c < 128) {
       if (buflen == bufsize - 1) {
         bufsize *= 2;
@@ -1664,6 +1842,85 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
 
     if (callback)
       callback(buf, c);
+  }
+}
+
+// File completion helper - finds files matching prefix
+// Returns longest common prefix of all matches
+char *findFileCompletion(const char *prefix) {
+  DIR *dir = opendir(".");
+  if (!dir) return NULL;
+
+  char *match = NULL;
+  size_t prefix_len = strlen(prefix);
+
+  struct dirent *entry;
+  while ((entry = readdir(dir)) != NULL) {
+    if (strncmp(entry->d_name, prefix, prefix_len) == 0) {
+      if (match == NULL) {
+        match = strdup(entry->d_name);
+      } else {
+        // Find common prefix between match and new entry
+        size_t i = 0;
+        while (match[i] && entry->d_name[i] && match[i] == entry->d_name[i]) {
+          i++;
+        }
+        match[i] = '\0';
+      }
+    }
+  }
+  closedir(dir);
+
+  // Only return if we found something longer than the original prefix
+  if (match && strlen(match) > prefix_len) {
+    return match;
+  }
+  free(match);
+  return NULL;
+}
+
+// Prompt with file completion (for :e command)
+char *editorPromptWithFileCompletion(char *prompt) {
+  size_t bufsize = 128;
+  char *buf = malloc(bufsize);
+
+  size_t buflen = 0;
+  buf[0] = '\0';
+
+  while (1) {
+    editorSetStatusMessage(prompt, buf);
+    editorRefreshScreen();
+
+    int c = editorReadKey();
+    if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
+      if (buflen != 0)
+        buf[--buflen] = '\0';
+    } else if (c == '\x1b') {
+      editorSetStatusMessage("");
+      free(buf);
+      return NULL;
+    } else if (c == '\r') {
+      if (buflen != 0) {
+        editorSetStatusMessage("");
+        return buf;
+      }
+    } else if (c == '\t') {
+      // Tab completion
+      char *completion = findFileCompletion(buf);
+      if (completion) {
+        free(buf);
+        buf = completion;
+        buflen = strlen(buf);
+        bufsize = buflen + 1;
+      }
+    } else if (!iscntrl(c) && c < 128) {
+      if (buflen == bufsize - 1) {
+        bufsize *= 2;
+        buf = realloc(buf, bufsize);
+      }
+      buf[buflen++] = c;
+      buf[buflen] = '\0';
+    }
   }
 }
 
@@ -1779,7 +2036,7 @@ void editorMoveCursor(int key) {
     }
     break;
   case ARROW_DOWN:
-    if (E.cy < E.numrows) {
+    if (E.cy < E.numrows - 1) {
       E.cy++;
     }
     break;
@@ -1909,7 +2166,7 @@ int handleMovementKey(int key, int prev) {
     // 'g' needs special handling for 'gg', so return 0 to let caller handle it
     return 0;
   case 'G':
-    E.cy = E.numrows;
+    E.cy = E.numrows > 0 ? E.numrows - 1 : 0;
     return 1;
   default:
     return 0;
@@ -1948,8 +2205,25 @@ void handleNormalModeKeypress(int key) {
   int prev = E.prevNormalKey;
   E.prevNormalKey = 0;
 
-  // Try to handle as movement first
+  // Handle digit keys for repeat count
+  if (key >= '1' && key <= '9') {
+    E.repeatCount = E.repeatCount * 10 + (key - '0');
+    return;
+  }
+  if (key == '0' && E.repeatCount > 0) {
+    E.repeatCount = E.repeatCount * 10;
+    return;
+  }
+
+  // Get the repeat count (default to 1 if not set)
+  int count = E.repeatCount > 0 ? E.repeatCount : 1;
+  E.repeatCount = 0;  // Reset for next command
+
+  // Try to handle as movement first (with repeat)
   if (handleMovementKey(key, prev)) {
+    for (int i = 1; i < count; i++) {
+      handleMovementKey(key, 0);
+    }
     return;
   }
 
@@ -1973,17 +2247,22 @@ void handleNormalModeKeypress(int key) {
     break;
   case 'd':
     if (prev == 'd') {
-      // delete row
+      // delete row(s)
       editorPushUndoState();
-      editorDelRow(E.cy);
+      for (int i = 0; i < count && E.cy < E.numrows; i++) {
+        editorDelRow(E.cy);
+      }
     } else {
       E.prevNormalKey = key;
+      E.repeatCount = count;  // Preserve count for dd
     }
     break;
   case 'x':
-    // delete char and remain
+    // delete char(s) and remain
     editorPushUndoState();
-    editorXChar();
+    for (int i = 0; i < count; i++) {
+      editorXChar();
+    }
     break;
   case 'A':
     editorMoveCursor(END_KEY);
@@ -2067,6 +2346,43 @@ void handleNormalModeKeypress(int key) {
   case 'u':
     editorUndo();
     break;
+  case 'f':
+  case 't': {
+    // Check if this is ct{char}, cf{char}, dt{char}, df{char}
+    if (prev == 'c' || prev == 'd') {
+      int target = editorReadKey();
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        int found = -1;
+        for (int i = E.cx; i < row->size; i++) {
+          if (row->chars[i] == target) {
+            found = (key == 'f') ? i + 1 : i;  // f includes char, t excludes
+            break;
+          }
+        }
+        if (found > E.cx) {
+          editorPushUndoState();
+          editorRowDelSpan(row, E.cx, found);
+          if (prev == 'c') {
+            E.mode = DIM_INSERT_MODE;
+          }
+        }
+      }
+    } else {
+      // Plain f{char} or t{char} - jump to character
+      int target = editorReadKey();
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        for (int i = E.cx + 1; i < row->size; i++) {
+          if (row->chars[i] == target) {
+            E.cx = (key == 'f') ? i : i - 1;
+            break;
+          }
+        }
+      }
+    }
+    break;
+  }
   default:
     break;
   }
@@ -2074,6 +2390,32 @@ void handleNormalModeKeypress(int key) {
 
 void handleInsertModeKeypress(int c) {
   static int quit_times = DIM_QUIT_TIMES;
+
+  // Handle jj escape sequence
+  #define JJ_TIMEOUT_MS 150
+  if (c == 'j') {
+    long now = getCurrentTimeMs();
+    if (E.pendingInsertKey == 'j' && (now - E.pendingInsertTimeMs) < JJ_TIMEOUT_MS) {
+      // Second j within timeout - escape to normal mode
+      // Delete the first j that was inserted
+      editorDelChar();
+      editorPushUndoState();
+      E.mode = DIM_NORMAL_MODE;
+      E.pendingInsertKey = 0;
+      quit_times = DIM_QUIT_TIMES;
+      return;
+    }
+    // First j or timeout expired - insert it and mark as pending
+    editorInsertChar(c);
+    E.pendingInsertKey = 'j';
+    E.pendingInsertTimeMs = now;
+    quit_times = DIM_QUIT_TIMES;
+    return;
+  }
+
+  // Any other key clears the pending j
+  E.pendingInsertKey = 0;
+
   switch (c) {
   case '\r':
     editorInsertNewLine();
@@ -2137,6 +2479,28 @@ void handleInsertModeKeypress(int c) {
     editorFind();
     break;
 
+  case '\t': {
+    // Check if file uses tabs (scan for tab character in any row)
+    int useTabs = 0;
+    for (int i = 0; i < E.numrows && !useTabs; i++) {
+      for (int j = 0; j < E.row[i].size; j++) {
+        if (E.row[i].chars[j] == '\t') {
+          useTabs = 1;
+          break;
+        }
+      }
+    }
+    if (useTabs) {
+      editorInsertChar('\t');
+    } else {
+      // Insert 4 spaces instead of tab character
+      for (int i = 0; i < DIM_TAB_STOP; i++) {
+        editorInsertChar(' ');
+      }
+    }
+    break;
+  }
+
   default:
     editorInsertChar(c);
     break;
@@ -2182,6 +2546,7 @@ void initEditor(void) {
   E.ts_tree = NULL;
   E.mode = DIM_NORMAL_MODE;
   E.prevNormalKey = 0;
+  E.repeatCount = 0;
   E.searchString = NULL;
   E.searchIndex = 0;
   E.searchDirection = 1;
@@ -2191,6 +2556,8 @@ void initEditor(void) {
   E.undo_stack = NULL;
   E.undo_stack_size = 0;
   E.undo_stack_capacity = 0;
+  E.pendingInsertKey = 0;
+  E.pendingInsertTimeMs = 0;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1)
     die("getWindowSize");
