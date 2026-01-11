@@ -1042,5 +1042,69 @@ class TestDimYankWord(unittest.TestCase):
             "Expected (modified) after pasting yanked word")
 
 
+class TestDimCapitalC(unittest.TestCase):
+    """Tests for C (change to end of line) functionality."""
+
+    def test_C_deletes_to_end_of_line_and_enters_insert(self):
+        """Test that C deletes from cursor to end of line and enters insert mode."""
+        # Open file, move right 5 chars to 'o' in "Hello", then C to delete rest
+        input_str = "[sleep:50]foCReplaced[esc][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After fo (find 'o'), C should delete ", World!" and we type "Replaced"
+        # Result should be "HelloReplaced"
+        self.assertIn("Replaced", result.output,
+            "Expected 'Replaced' after C and typing")
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after C")
+
+    def test_C_at_end_of_line_enters_insert_mode(self):
+        """Test that C at end of line just enters insert mode."""
+        # Go to end of line with $, then C, type text
+        input_str = "[sleep:50]$CExtra[esc][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should see Extra appended
+        self.assertIn("Extra", result.output,
+            "Expected 'Extra' after C at end of line")
+
+    def test_C_shows_insert_mode(self):
+        """Test that C enters INSERT mode."""
+        # Use C and check mode indicator
+        input_str = "[sleep:50]C[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should be in INSERT mode
+        self.assertIn("INSERT", result.output,
+            "Expected INSERT mode after C")
+
+
 if __name__ == "__main__":
     unittest.main()
