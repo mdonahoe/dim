@@ -1106,5 +1106,68 @@ class TestDimCapitalC(unittest.TestCase):
             "Expected INSERT mode after C")
 
 
+class TestDimReplaceChar(unittest.TestCase):
+    """Tests for r (replace character) functionality."""
+
+    def test_r_replaces_character(self):
+        """Test that r{char} replaces current character with new character."""
+        # Open file, replace 'H' with 'J'
+        input_str = "[sleep:50]rJ[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # First character 'H' should be replaced with 'J'
+        self.assertIn("Jello, World!", result.output,
+            "Expected 'Jello, World!' after replacing H with J")
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after replacement")
+
+    def test_r_stays_in_normal_mode(self):
+        """Test that r remains in normal mode after replacement."""
+        # Replace character, then try a normal mode command
+        input_str = "[sleep:50]rJl[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should still be in NORMAL mode (l moved right, not inserted 'l')
+        self.assertIn("NORMAL", result.output,
+            "Expected NORMAL mode after r replacement")
+
+    def test_r_with_number_prefix(self):
+        """Test that 3r{char} replaces 3 characters."""
+        # Replace first 3 characters with 'X'
+        input_str = "[sleep:50]3rX[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # First 3 chars "Hel" should be replaced with "XXX"
+        self.assertIn("XXXlo, World!", result.output,
+            "Expected 'XXXlo, World!' after 3rX")
+
+
 if __name__ == "__main__":
     unittest.main()
