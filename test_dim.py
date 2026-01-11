@@ -1169,5 +1169,92 @@ class TestDimReplaceChar(unittest.TestCase):
             "Expected 'XXXlo, World!' after 3rX")
 
 
+class TestDimBackwardFind(unittest.TestCase):
+    """Tests for F and T (backward find character) functionality."""
+
+    def test_F_jumps_backward_to_character(self):
+        """Test that F{char} moves cursor backward to character."""
+        # Go to end of line, then F, to find the comma backward
+        input_str = "[sleep:50]$F,[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Cursor should be on ',' now, file unmodified
+        self.assertNotIn("(modified)", result.output,
+            "File should not be modified by F movement")
+        self.assertIn("Hello, World!", result.output,
+            "File content should be unchanged")
+
+    def test_T_jumps_backward_before_character(self):
+        """Test that T{char} moves cursor backward to one after character."""
+        # Go to end of line, then T, to find position after comma backward
+        input_str = "[sleep:50]$T,[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # File should not be modified
+        self.assertNotIn("(modified)", result.output,
+            "File should not be modified by T movement")
+
+    def test_dF_deletes_backward_to_character(self):
+        """Test that dF{char} deletes backward to character (inclusive)."""
+        # Go to end of line, then dF, to delete from cursor back to comma
+        input_str = "[sleep:50]$dF,[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # "Hello, World!" with $dF, should become "Hello"
+        # (delete from end back to and including comma)
+        self.assertIn("Hello", result.output,
+            "Expected 'Hello' to remain after dF,")
+        self.assertIn("(modified)", result.output,
+            "File should be modified after deletion")
+
+    def test_cT_changes_backward_before_character(self):
+        """Test that cT{char} changes backward to one after character."""
+        # Go to end of line, then cT, to change from cursor to after comma
+        input_str = "[sleep:50]$cT,NEW[esc][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should see NEW in the output
+        self.assertIn("NEW", result.output,
+            "Expected 'NEW' after cT, replacement")
+        self.assertIn("(modified)", result.output,
+            "File should be modified after change")
+
+
 if __name__ == "__main__":
     unittest.main()
