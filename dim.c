@@ -121,6 +121,7 @@ struct editorConfig {
   markpt v_end;
   char *clipboard;
   int clipboard_len;
+  int clipboard_is_line;  // 1 if yy (full line yank), 0 if yw (word/inline yank)
   time_t last_ts_parse;
   undoState *undo_stack;
   int undo_stack_size;
@@ -2042,15 +2043,24 @@ void pasteClipboard() {
     return;
   }
 
-  // Insert below cursor
-  editorInsertNewLine();
-
-  // Insert clipboard content
-  for (int i = 0; i < E.clipboard_len; i++) {
-    if (E.clipboard[i] == '\n') {
-      editorInsertNewLine();
-    } else {
-      editorInsertChar(E.clipboard[i]);
+  if (E.clipboard_is_line) {
+    // Line yank: insert below cursor as a new line
+    editorInsertNewLine();
+    for (int i = 0; i < E.clipboard_len; i++) {
+      if (E.clipboard[i] == '\n') {
+        editorInsertNewLine();
+      } else {
+        editorInsertChar(E.clipboard[i]);
+      }
+    }
+  } else {
+    // Word/text yank: insert at cursor position inline
+    for (int i = 0; i < E.clipboard_len; i++) {
+      if (E.clipboard[i] == '\n') {
+        editorInsertNewLine();
+      } else {
+        editorInsertChar(E.clipboard[i]);
+      }
     }
   }
 }
@@ -2211,6 +2221,23 @@ void handleNormalModeKeypress(int key) {
       editorPushUndoState();
       editorDelToEndOfWord();
       break;
+    case 'y':
+      // yw - yank word from cursor to end of word
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        int end = getEndOfWord(E.cx, row);
+        int len = end - E.cx;
+        if (len > 0) {
+          free(E.clipboard);
+          E.clipboard = malloc(len + 1);
+          memcpy(E.clipboard, row->chars + E.cx, len);
+          E.clipboard[len] = '\0';
+          E.clipboard_len = len;
+          E.clipboard_is_line = 0;  // Word yank, not line yank
+          editorSetStatusMessage("Yanked word: %d chars", len);
+        }
+      }
+      break;
     case 0:
       editorMoveWordForward();
       break;
@@ -2249,6 +2276,7 @@ void handleNormalModeKeypress(int key) {
         memcpy(E.clipboard, row->chars, row->size);
         E.clipboard[row->size] = '\0';
         E.clipboard_len = row->size;
+        E.clipboard_is_line = 1;  // Line yank
         editorSetStatusMessage("Yanked line: %d chars", row->size);
       }
     } else {
@@ -2471,6 +2499,7 @@ void initEditor(void) {
   E.searchDirection = 1;
   E.clipboard = NULL;
   E.clipboard_len = 0;
+  E.clipboard_is_line = 0;
   E.last_ts_parse = time(NULL);
   E.undo_stack = NULL;
   E.undo_stack_size = 0;
