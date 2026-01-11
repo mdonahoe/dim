@@ -499,5 +499,98 @@ class TestDimYankPaste(unittest.TestCase):
             "Expected file to still have 5 lines when paste with empty register")
 
 
+class TestDimTabInsertion(unittest.TestCase):
+    """Tests for tab key insertion behavior."""
+
+    def test_tab_inserts_four_spaces(self):
+        """Test that pressing tab in insert mode inserts 4 spaces."""
+        # Create new file, enter insert mode, press tab, then type text
+        input_str = "[sleep:50]i[tab]test[ctrl-s]test_tab.txt[enter][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Verify file was created with 4 spaces before 'test'
+        self.assertTrue(os.path.exists("test_tab.txt"),
+            "Expected file to be created")
+
+        with open("test_tab.txt", "r") as f:
+            contents = f.read()
+            # Tab should insert 4 spaces, not a tab character
+            self.assertIn("    test", contents,
+                "Expected 4 spaces before 'test' when tab is pressed")
+            self.assertNotIn("\t", contents,
+                "Expected spaces, not tab character")
+
+        # Clean up
+        os.remove("test_tab.txt")
+
+    def test_tab_respects_existing_tabs(self):
+        """Test that tab inserts actual tabs if file already contains tabs."""
+        # Create a file with tabs first
+        with open("test_with_tabs.txt", "w") as f:
+            f.write("\tindented with tab\n")
+
+        # Open the file, go to end, add new line with tab
+        input_str = "[sleep:50]Go[tab]more[ctrl-s][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "test_with_tabs.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Read the file and check if tab was used
+        with open("test_with_tabs.txt", "r") as f:
+            contents = f.read()
+            lines = contents.split('\n')
+            # The new line should also use tab (if feature respects existing tabs)
+            if len(lines) >= 2:
+                self.assertIn("\t", lines[-1] if lines[-1] else lines[-2],
+                    "Expected tab character when file already contains tabs")
+
+        # Clean up
+        os.remove("test_with_tabs.txt")
+
+    def test_tab_at_beginning_of_line(self):
+        """Test that tab at beginning of line creates proper indentation."""
+        # Create new file, enter insert mode, press tab twice
+        input_str = "[sleep:50]i[tab][tab]indented[ctrl-s]test_indent.txt[enter][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Verify file was created with 8 spaces (2 tabs * 4 spaces each)
+        self.assertTrue(os.path.exists("test_indent.txt"),
+            "Expected file to be created")
+
+        with open("test_indent.txt", "r") as f:
+            contents = f.read()
+            # Two tabs should give 8 spaces
+            self.assertIn("        indented", contents,
+                "Expected 8 spaces (2 tabs) before 'indented'")
+
+        # Clean up
+        os.remove("test_indent.txt")
+
+
 if __name__ == "__main__":
     unittest.main()

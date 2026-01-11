@@ -2137,6 +2137,28 @@ void handleInsertModeKeypress(int c) {
     editorFind();
     break;
 
+  case '\t': {
+    // Check if file uses tabs (scan for tab character in any row)
+    int useTabs = 0;
+    for (int i = 0; i < E.numrows && !useTabs; i++) {
+      for (int j = 0; j < E.row[i].size; j++) {
+        if (E.row[i].chars[j] == '\t') {
+          useTabs = 1;
+          break;
+        }
+      }
+    }
+    if (useTabs) {
+      editorInsertChar('\t');
+    } else {
+      // Insert 4 spaces instead of tab character
+      for (int i = 0; i < DIM_TAB_STOP; i++) {
+        editorInsertChar(' ');
+      }
+    }
+    break;
+  }
+
   default:
     editorInsertChar(c);
     break;
