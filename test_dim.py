@@ -979,5 +979,68 @@ class TestDimEditCommand(unittest.TestCase):
             "Expected tab completion to show example files")
 
 
+class TestDimYankWord(unittest.TestCase):
+    """Tests for yw (yank word) functionality."""
+
+    def test_yank_word_and_paste(self):
+        """Test that yw yanks current word and p pastes it."""
+        # Open hello_world.txt, yank first word with yw, move to end of line, paste
+        input_str = "[sleep:50]yw$p[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After yanking "Hello," (first word) and pasting at end,
+        # we should see "Hello" appear twice on the first line
+        # The line should be "Hello, World!Hello," or similar
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after yw + p")
+
+    def test_yank_word_shows_message(self):
+        """Test that yw shows a 'yanked' message in status bar."""
+        # Open file and yank a word
+        input_str = "[sleep:50]yw[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should show confirmation that word was yanked
+        self.assertIn("yank", result.output.lower(),
+            "Expected 'yank' message in status bar after yw")
+
+    def test_yank_word_and_paste_at_different_location(self):
+        """Test yanking word on one line and pasting on another."""
+        # Yank "Hello," then go to line 2 and paste
+        input_str = "[sleep:50]ywjp[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # File should be modified after paste
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after pasting yanked word")
+
+
 if __name__ == "__main__":
     unittest.main()
