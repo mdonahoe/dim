@@ -121,6 +121,7 @@ struct editorConfig {
   markpt v_end;
   char *clipboard;
   int clipboard_len;
+  int clipboard_is_line;  // 1 if yy (full line yank), 0 if yw (word/inline yank)
   time_t last_ts_parse;
   undoState *undo_stack;
   int undo_stack_size;
@@ -1102,51 +1103,6 @@ void editorOpen(char *filename) {
   editorSelectSyntaxHighlight();
 }
 
-void editorClearBuffer(void) {
-  // Free all rows
-  for (int i = 0; i < E.numrows; i++) {
-    editorFreeRow(&E.row[i]);
-  }
-  free(E.row);
-  E.row = NULL;
-  E.numrows = 0;
-  E.cx = 0;
-  E.cy = 0;
-  E.rowoff = 0;
-  E.coloff = 0;
-  E.dirty = 0;
-}
-
-void editorOpenFile(char *filename) {
-  // Clear current buffer
-  editorClearBuffer();
-
-  // Free old filename and set new one
-  free(E.filename);
-  E.filename = strdup(filename);
-
-  // Try to open the file
-  FILE *fp = fopen(filename, "r");
-  if (!fp) {
-    editorSetStatusMessage("Can't open file: %s", filename);
-    return;
-  }
-
-  char *line = NULL;
-  size_t linecap = 0;
-  ssize_t linelen;
-  while ((linelen = getline(&line, &linecap, fp)) != -1) {
-    while (linelen > 0 &&
-           (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
-      linelen--;
-    editorInsertRow(E.numrows, line, linelen);
-  }
-  free(line);
-  fclose(fp);
-  E.dirty = 0;
-  editorSelectSyntaxHighlight();
-}
-
 void editorSave(void) {
   if (E.filename == NULL) {
     E.filename = editorPrompt("Save as: %s", NULL);
@@ -1189,8 +1145,6 @@ void exModeCallback(char *query, int key) {
   } else {
   }
 }
-
-void editorOpenFile(char *filename);  // Forward declaration
 
 void exMode() {
   char *query = editorPrompt("ex: %s", exModeCallback);
@@ -1845,40 +1799,6 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
   }
 }
 
-// File completion helper - finds files matching prefix
-// Returns longest common prefix of all matches
-char *findFileCompletion(const char *prefix) {
-  DIR *dir = opendir(".");
-  if (!dir) return NULL;
-
-  char *match = NULL;
-  size_t prefix_len = strlen(prefix);
-
-  struct dirent *entry;
-  while ((entry = readdir(dir)) != NULL) {
-    if (strncmp(entry->d_name, prefix, prefix_len) == 0) {
-      if (match == NULL) {
-        match = strdup(entry->d_name);
-      } else {
-        // Find common prefix between match and new entry
-        size_t i = 0;
-        while (match[i] && entry->d_name[i] && match[i] == entry->d_name[i]) {
-          i++;
-        }
-        match[i] = '\0';
-      }
-    }
-  }
-  closedir(dir);
-
-  // Only return if we found something longer than the original prefix
-  if (match && strlen(match) > prefix_len) {
-    return match;
-  }
-  free(match);
-  return NULL;
-}
-
 // Prompt with file completion (for :e command)
 char *editorPromptWithFileCompletion(char *prompt) {
   size_t bufsize = 128;
@@ -2123,15 +2043,24 @@ void pasteClipboard() {
     return;
   }
 
-  // Insert below cursor
-  editorInsertNewLine();
-
-  // Insert clipboard content
-  for (int i = 0; i < E.clipboard_len; i++) {
-    if (E.clipboard[i] == '\n') {
-      editorInsertNewLine();
-    } else {
-      editorInsertChar(E.clipboard[i]);
+  if (E.clipboard_is_line) {
+    // Line yank: insert below cursor as a new line
+    editorInsertNewLine();
+    for (int i = 0; i < E.clipboard_len; i++) {
+      if (E.clipboard[i] == '\n') {
+        editorInsertNewLine();
+      } else {
+        editorInsertChar(E.clipboard[i]);
+      }
+    }
+  } else {
+    // Word/text yank: insert at cursor position inline
+    for (int i = 0; i < E.clipboard_len; i++) {
+      if (E.clipboard[i] == '\n') {
+        editorInsertNewLine();
+      } else {
+        editorInsertChar(E.clipboard[i]);
+      }
     }
   }
 }
@@ -2268,6 +2197,31 @@ void handleNormalModeKeypress(int key) {
     editorMoveCursor(END_KEY);
     E.mode = DIM_INSERT_MODE;
     break;
+  case 'C':
+    // Delete from cursor to end of line and enter insert mode
+    if (E.cy < E.numrows) {
+      editorPushUndoState();
+      erow *row = &E.row[E.cy];
+      if (E.cx < row->size) {
+        editorRowDelSpan(row, E.cx, row->size);
+      }
+      E.mode = DIM_INSERT_MODE;
+    }
+    break;
+  case 'r': {
+    // Replace current character(s) with next typed character
+    int replacement = editorReadKey();
+    if (E.cy < E.numrows) {
+      erow *row = &E.row[E.cy];
+      editorPushUndoState();
+      for (int i = 0; i < count && E.cx + i < row->size; i++) {
+        row->chars[E.cx + i] = replacement;
+      }
+      E.dirty++;
+      editorUpdateRow(row);
+    }
+    break;
+  }
   case 'g':
     if (prev == 'g') {
       E.cy = 0;
@@ -2291,6 +2245,23 @@ void handleNormalModeKeypress(int key) {
     case 'd':
       editorPushUndoState();
       editorDelToEndOfWord();
+      break;
+    case 'y':
+      // yw - yank word from cursor to end of word
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        int end = getEndOfWord(E.cx, row);
+        int len = end - E.cx;
+        if (len > 0) {
+          free(E.clipboard);
+          E.clipboard = malloc(len + 1);
+          memcpy(E.clipboard, row->chars + E.cx, len);
+          E.clipboard[len] = '\0';
+          E.clipboard_len = len;
+          E.clipboard_is_line = 0;  // Word yank, not line yank
+          editorSetStatusMessage("Yanked word: %d chars", len);
+        }
+      }
       break;
     case 0:
       editorMoveWordForward();
@@ -2330,6 +2301,7 @@ void handleNormalModeKeypress(int key) {
         memcpy(E.clipboard, row->chars, row->size);
         E.clipboard[row->size] = '\0';
         E.clipboard_len = row->size;
+        E.clipboard_is_line = 1;  // Line yank
         editorSetStatusMessage("Yanked line: %d chars", row->size);
       }
     } else {
@@ -2376,6 +2348,48 @@ void handleNormalModeKeypress(int key) {
         for (int i = E.cx + 1; i < row->size; i++) {
           if (row->chars[i] == target) {
             E.cx = (key == 'f') ? i : i - 1;
+            break;
+          }
+        }
+      }
+    }
+    break;
+  }
+  case 'F':
+  case 'T': {
+    // Backward find: cT{char}, cF{char}, dT{char}, dF{char}
+    if (prev == 'c' || prev == 'd') {
+      int target = editorReadKey();
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        int found = -1;
+        // Search backward from cursor
+        for (int i = E.cx - 1; i >= 0; i--) {
+          if (row->chars[i] == target) {
+            found = i;
+            break;
+          }
+        }
+        if (found >= 0 && found < E.cx) {
+          editorPushUndoState();
+          // For F: delete from found position to cursor (inclusive of found char)
+          // For T: delete from found+1 position to cursor (exclusive of found char)
+          int start = (key == 'F') ? found : found + 1;
+          editorRowDelSpan(row, start, E.cx);
+          E.cx = start;
+          if (prev == 'c') {
+            E.mode = DIM_INSERT_MODE;
+          }
+        }
+      }
+    } else {
+      // Plain F{char} or T{char} - jump backward to character
+      int target = editorReadKey();
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        for (int i = E.cx - 1; i >= 0; i--) {
+          if (row->chars[i] == target) {
+            E.cx = (key == 'F') ? i : i + 1;
             break;
           }
         }
@@ -2552,6 +2566,7 @@ void initEditor(void) {
   E.searchDirection = 1;
   E.clipboard = NULL;
   E.clipboard_len = 0;
+  E.clipboard_is_line = 0;
   E.last_ts_parse = time(NULL);
   E.undo_stack = NULL;
   E.undo_stack_size = 0;

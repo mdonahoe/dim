@@ -979,5 +979,282 @@ class TestDimEditCommand(unittest.TestCase):
             "Expected tab completion to show example files")
 
 
+class TestDimYankWord(unittest.TestCase):
+    """Tests for yw (yank word) functionality."""
+
+    def test_yank_word_and_paste(self):
+        """Test that yw yanks current word and p pastes it."""
+        # Open hello_world.txt, yank first word with yw, move to end of line, paste
+        input_str = "[sleep:50]yw$p[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After yanking "Hello," (first word) and pasting at end,
+        # we should see "Hello" appear twice on the first line
+        # The line should be "Hello, World!Hello," or similar
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after yw + p")
+
+    def test_yank_word_shows_message(self):
+        """Test that yw shows a 'yanked' message in status bar."""
+        # Open file and yank a word
+        input_str = "[sleep:50]yw[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should show confirmation that word was yanked
+        self.assertIn("yank", result.output.lower(),
+            "Expected 'yank' message in status bar after yw")
+
+    def test_yank_word_and_paste_at_different_location(self):
+        """Test yanking word on one line and pasting on another."""
+        # Yank "Hello," then go to line 2 and paste
+        input_str = "[sleep:50]ywjp[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # File should be modified after paste
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after pasting yanked word")
+
+
+class TestDimCapitalC(unittest.TestCase):
+    """Tests for C (change to end of line) functionality."""
+
+    def test_C_deletes_to_end_of_line_and_enters_insert(self):
+        """Test that C deletes from cursor to end of line and enters insert mode."""
+        # Open file, move right 5 chars to 'o' in "Hello", then C to delete rest
+        input_str = "[sleep:50]foCReplaced[esc][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After fo (find 'o'), C should delete ", World!" and we type "Replaced"
+        # Result should be "HelloReplaced"
+        self.assertIn("Replaced", result.output,
+            "Expected 'Replaced' after C and typing")
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after C")
+
+    def test_C_at_end_of_line_enters_insert_mode(self):
+        """Test that C at end of line just enters insert mode."""
+        # Go to end of line with $, then C, type text
+        input_str = "[sleep:50]$CExtra[esc][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should see Extra appended
+        self.assertIn("Extra", result.output,
+            "Expected 'Extra' after C at end of line")
+
+    def test_C_shows_insert_mode(self):
+        """Test that C enters INSERT mode."""
+        # Use C and check mode indicator
+        input_str = "[sleep:50]C[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should be in INSERT mode
+        self.assertIn("INSERT", result.output,
+            "Expected INSERT mode after C")
+
+
+class TestDimReplaceChar(unittest.TestCase):
+    """Tests for r (replace character) functionality."""
+
+    def test_r_replaces_character(self):
+        """Test that r{char} replaces current character with new character."""
+        # Open file, replace 'H' with 'J'
+        input_str = "[sleep:50]rJ[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # First character 'H' should be replaced with 'J'
+        self.assertIn("Jello, World!", result.output,
+            "Expected 'Jello, World!' after replacing H with J")
+        self.assertIn("(modified)", result.output,
+            "Expected (modified) after replacement")
+
+    def test_r_stays_in_normal_mode(self):
+        """Test that r remains in normal mode after replacement."""
+        # Replace character, then try a normal mode command
+        input_str = "[sleep:50]rJl[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should still be in NORMAL mode (l moved right, not inserted 'l')
+        self.assertIn("NORMAL", result.output,
+            "Expected NORMAL mode after r replacement")
+
+    def test_r_with_number_prefix(self):
+        """Test that 3r{char} replaces 3 characters."""
+        # Replace first 3 characters with 'X'
+        input_str = "[sleep:50]3rX[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # First 3 chars "Hel" should be replaced with "XXX"
+        self.assertIn("XXXlo, World!", result.output,
+            "Expected 'XXXlo, World!' after 3rX")
+
+
+class TestDimBackwardFind(unittest.TestCase):
+    """Tests for F and T (backward find character) functionality."""
+
+    def test_F_jumps_backward_to_character(self):
+        """Test that F{char} moves cursor backward to character."""
+        # Go to end of line, then F, to find the comma backward
+        input_str = "[sleep:50]$F,[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Cursor should be on ',' now, file unmodified
+        self.assertNotIn("(modified)", result.output,
+            "File should not be modified by F movement")
+        self.assertIn("Hello, World!", result.output,
+            "File content should be unchanged")
+
+    def test_T_jumps_backward_before_character(self):
+        """Test that T{char} moves cursor backward to one after character."""
+        # Go to end of line, then T, to find position after comma backward
+        input_str = "[sleep:50]$T,[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # File should not be modified
+        self.assertNotIn("(modified)", result.output,
+            "File should not be modified by T movement")
+
+    def test_dF_deletes_backward_to_character(self):
+        """Test that dF{char} deletes backward to character (inclusive)."""
+        # Go to end of line, then dF, to delete from cursor back to comma
+        input_str = "[sleep:50]$dF,[sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # "Hello, World!" with $dF, should become "Hello"
+        # (delete from end back to and including comma)
+        self.assertIn("Hello", result.output,
+            "Expected 'Hello' to remain after dF,")
+        self.assertIn("(modified)", result.output,
+            "File should be modified after deletion")
+
+    def test_cT_changes_backward_before_character(self):
+        """Test that cT{char} changes backward to one after character."""
+        # Go to end of line, then cT, to change from cursor to after comma
+        input_str = "[sleep:50]$cT,NEW[esc][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should see NEW in the output
+        self.assertIn("NEW", result.output,
+            "Expected 'NEW' after cT, replacement")
+        self.assertIn("(modified)", result.output,
+            "File should be modified after change")
+
+
 if __name__ == "__main__":
     unittest.main()
