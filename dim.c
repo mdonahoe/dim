@@ -1154,6 +1154,15 @@ void exMode() {
   }
 
   if (strcmp(query, "q") == 0) {
+    if (E.dirty) {
+      editorSetStatusMessage("No write since last change (add ! to override)");
+      free(query);
+      return;
+    }
+    clearScreen();
+    exit(0);
+  } else if (strcmp(query, "q!") == 0) {
+    // Force quit without saving
     clearScreen();
     exit(0);
   } else if (strcmp(query, "w") == 0) {
@@ -1576,11 +1585,11 @@ void editorDrawRows(struct abuf *ab) {
         } else if (!is_search && in_search) {
           // If we're leaving search, check if we enter selection
           if (is_selected) {
-            abAppend(ab, "\x1b[48;5;237m", 11);
+            abAppend(ab, "\x1b[7m", 4);  // reverse video (works on all terminals)
             in_selection = 1;
           } else {
-            abAppend(ab, "\x1b[49m\x1b[39m",
-                     10); // reset background and foreground
+            abAppend(ab, "\x1b[27m\x1b[39m",
+                     10); // reset reverse and foreground
           }
           in_search = 0;
           // Restore syntax color if not in selection
@@ -1588,11 +1597,11 @@ void editorDrawRows(struct abuf *ab) {
             current_color = -1;
           }
         } else if (is_selected && !in_selection && !in_search) {
-          // Toggle selection background (only if not in search)
-          abAppend(ab, "\x1b[48;5;237m", 11); // dark gray background
+          // Toggle selection highlight (only if not in search)
+          abAppend(ab, "\x1b[7m", 4);  // reverse video (works on all terminals)
           in_selection = 1;
         } else if (!is_selected && in_selection && !in_search) {
-          abAppend(ab, "\x1b[49m", 5); // reset background
+          abAppend(ab, "\x1b[27m", 5); // reset reverse video
           in_selection = 0;
         }
 
@@ -1609,7 +1618,7 @@ void editorDrawRows(struct abuf *ab) {
           if (in_search) {
             abAppend(ab, "\x1b[48;5;226m\x1b[30m", 17);
           } else if (in_selection) {
-            abAppend(ab, "\x1b[48;5;237m", 11);
+            abAppend(ab, "\x1b[7m", 4);  // reverse video
           }
         } else if (in_search) {
           // In search match: ignore syntax coloring, just output character
@@ -1631,8 +1640,11 @@ void editorDrawRows(struct abuf *ab) {
           abAppend(ab, &c[j], 1);
         }
       }
-      if (in_search || in_selection) {
+      if (in_search) {
         abAppend(ab, "\x1b[49m", 5); // reset background at line end
+      }
+      if (in_selection) {
+        abAppend(ab, "\x1b[27m", 5); // reset reverse video at line end
       }
       abAppend(ab, "\x1b[39m", 5);
     }
@@ -1644,10 +1656,13 @@ void editorDrawRows(struct abuf *ab) {
 void editorDrawStatusBar(struct abuf *ab) {
   abAppend(ab, "\x1b[7m", 4);
   char status[80], rstatus[80];
+  const char *mode_str = "NORMAL";
+  if (E.mode == DIM_INSERT_MODE) mode_str = "INSERT";
+  else if (E.mode == DIM_VISUAL_MODE) mode_str = "VISUAL";
   int len = snprintf(
       status, sizeof(status), "%.20s - %d lines %s -- %s %d -- %d",
       E.filename ? E.filename : "[No Name]", E.numrows,
-      E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT",
+      mode_str,
       E.dirty ? "(modified)" : "", E.v_end.y - E.v_start.y, E.prevNormalKey);
   int rlen =
       snprintf(rstatus, sizeof(status), "%s | %d/%d",
@@ -2044,14 +2059,13 @@ void pasteClipboard() {
   }
 
   if (E.clipboard_is_line) {
-    // Line yank: insert below cursor as a new line
-    editorInsertNewLine();
-    for (int i = 0; i < E.clipboard_len; i++) {
-      if (E.clipboard[i] == '\n') {
-        editorInsertNewLine();
-      } else {
-        editorInsertChar(E.clipboard[i]);
-      }
+    // Line yank: insert below cursor as a new line without splitting current line
+    editorInsertRow(E.cy + 1, E.clipboard, E.clipboard_len);
+    E.cy++;
+    E.cx = 0;
+    E.dirty++;
+    if (E.syntax && E.syntax->ts_language) {
+      editorReparseTreeSitter();
     }
   } else {
     // Word/text yank: insert at cursor position inline
@@ -2194,7 +2208,9 @@ void handleNormalModeKeypress(int key) {
     }
     break;
   case 'A':
-    editorMoveCursor(END_KEY);
+    // Move to end of line (after last char) and enter insert mode
+    if (E.cy < E.numrows)
+      E.cx = E.row[E.cy].size;
     E.mode = DIM_INSERT_MODE;
     break;
   case 'C':
