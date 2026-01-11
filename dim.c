@@ -1102,51 +1102,6 @@ void editorOpen(char *filename) {
   editorSelectSyntaxHighlight();
 }
 
-void editorClearBuffer(void) {
-  // Free all rows
-  for (int i = 0; i < E.numrows; i++) {
-    editorFreeRow(&E.row[i]);
-  }
-  free(E.row);
-  E.row = NULL;
-  E.numrows = 0;
-  E.cx = 0;
-  E.cy = 0;
-  E.rowoff = 0;
-  E.coloff = 0;
-  E.dirty = 0;
-}
-
-void editorOpenFile(char *filename) {
-  // Clear current buffer
-  editorClearBuffer();
-
-  // Free old filename and set new one
-  free(E.filename);
-  E.filename = strdup(filename);
-
-  // Try to open the file
-  FILE *fp = fopen(filename, "r");
-  if (!fp) {
-    editorSetStatusMessage("Can't open file: %s", filename);
-    return;
-  }
-
-  char *line = NULL;
-  size_t linecap = 0;
-  ssize_t linelen;
-  while ((linelen = getline(&line, &linecap, fp)) != -1) {
-    while (linelen > 0 &&
-           (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
-      linelen--;
-    editorInsertRow(E.numrows, line, linelen);
-  }
-  free(line);
-  fclose(fp);
-  E.dirty = 0;
-  editorSelectSyntaxHighlight();
-}
-
 void editorSave(void) {
   if (E.filename == NULL) {
     E.filename = editorPrompt("Save as: %s", NULL);
@@ -1189,8 +1144,6 @@ void exModeCallback(char *query, int key) {
   } else {
   }
 }
-
-void editorOpenFile(char *filename);  // Forward declaration
 
 void exMode() {
   char *query = editorPrompt("ex: %s", exModeCallback);
@@ -1843,40 +1796,6 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
     if (callback)
       callback(buf, c);
   }
-}
-
-// File completion helper - finds files matching prefix
-// Returns longest common prefix of all matches
-char *findFileCompletion(const char *prefix) {
-  DIR *dir = opendir(".");
-  if (!dir) return NULL;
-
-  char *match = NULL;
-  size_t prefix_len = strlen(prefix);
-
-  struct dirent *entry;
-  while ((entry = readdir(dir)) != NULL) {
-    if (strncmp(entry->d_name, prefix, prefix_len) == 0) {
-      if (match == NULL) {
-        match = strdup(entry->d_name);
-      } else {
-        // Find common prefix between match and new entry
-        size_t i = 0;
-        while (match[i] && entry->d_name[i] && match[i] == entry->d_name[i]) {
-          i++;
-        }
-        match[i] = '\0';
-      }
-    }
-  }
-  closedir(dir);
-
-  // Only return if we found something longer than the original prefix
-  if (match && strlen(match) > prefix_len) {
-    return match;
-  }
-  free(match);
-  return NULL;
 }
 
 // Prompt with file completion (for :e command)
