@@ -2197,6 +2197,17 @@ void handleNormalModeKeypress(int key) {
     editorMoveCursor(END_KEY);
     E.mode = DIM_INSERT_MODE;
     break;
+  case 'C':
+    // Delete from cursor to end of line and enter insert mode
+    if (E.cy < E.numrows) {
+      editorPushUndoState();
+      erow *row = &E.row[E.cy];
+      if (E.cx < row->size) {
+        editorRowDelSpan(row, E.cx, row->size);
+      }
+      E.mode = DIM_INSERT_MODE;
+    }
+    break;
   case 'g':
     if (prev == 'g') {
       E.cy = 0;

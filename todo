@@ -1,7 +1,7 @@
 [ ] yank line yy and paste it with p almost works, but if the yank is a full line, it should paste a new line, rather than pasting at the current character
 [x] yank a word with yw
 [ ] capital A should take me to the end of the line and enter insert mode, not the character before the end
-[ ] capital C should delete until the end of the line and enter insert mode,
+[x] capital C should delete until the end of the line and enter insert mode,
 [ ] r should replace the current character with the next character and remain in normal mode.
 [ ] capital F should be like lowercase f, but searching backward. ditto capital T
 [ ] sometimes I get stuck in INSERT mode and ESCAPE does nothing. What is happening?
