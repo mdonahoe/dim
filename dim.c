@@ -2099,6 +2099,43 @@ void handleNormalModeKeypress(int key) {
   case 'u':
     editorUndo();
     break;
+  case 'f':
+  case 't': {
+    // Check if this is ct{char}, cf{char}, dt{char}, df{char}
+    if (prev == 'c' || prev == 'd') {
+      int target = editorReadKey();
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        int found = -1;
+        for (int i = E.cx; i < row->size; i++) {
+          if (row->chars[i] == target) {
+            found = (key == 'f') ? i + 1 : i;  // f includes char, t excludes
+            break;
+          }
+        }
+        if (found > E.cx) {
+          editorPushUndoState();
+          editorRowDelSpan(row, E.cx, found);
+          if (prev == 'c') {
+            E.mode = DIM_INSERT_MODE;
+          }
+        }
+      }
+    } else {
+      // Plain f{char} or t{char} - jump to character
+      int target = editorReadKey();
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        for (int i = E.cx + 1; i < row->size; i++) {
+          if (row->chars[i] == target) {
+            E.cx = (key == 'f') ? i : i - 1;
+            break;
+          }
+        }
+      }
+    }
+    break;
+  }
   default:
     break;
   }
