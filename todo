@@ -5,3 +5,4 @@
 [ ] r should replace the current character with the next character and remain in normal mode.
 [ ] capital F should be like lowercase f, but searching backward. ditto capital T
 [ ] sometimes I get stuck in INSERT mode and ESCAPE does nothing. What is happening?
+[ ] :q should warn before quitting if there are changes to the file, of if the current buffer is unsaved and didnt start with a file
