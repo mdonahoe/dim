@@ -2208,6 +2208,20 @@ void handleNormalModeKeypress(int key) {
       E.mode = DIM_INSERT_MODE;
     }
     break;
+  case 'r': {
+    // Replace current character(s) with next typed character
+    int replacement = editorReadKey();
+    if (E.cy < E.numrows) {
+      erow *row = &E.row[E.cy];
+      editorPushUndoState();
+      for (int i = 0; i < count && E.cx + i < row->size; i++) {
+        row->chars[E.cx + i] = replacement;
+      }
+      E.dirty++;
+      editorUpdateRow(row);
+    }
+    break;
+  }
   case 'g':
     if (prev == 'g') {
       E.cy = 0;
