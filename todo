@@ -1,8 +1,6 @@
-[x] yank line yy and paste it with p almost works, but if the yank is a full line, it should paste a new line, rather than pasting at the current character
-[x] yank a word with yw
 [ ] capital A should take me to the end of the line and enter insert mode, not the character before the end
-[x] capital C should delete until the end of the line and enter insert mode,
-[x] r should replace the current character with the next character and remain in normal mode.
-[x] capital F should be like lowercase f, but searching backward. ditto capital T
-[ ] sometimes I get stuck in INSERT mode and ESCAPE does nothing. What is happening?
 [ ] :q should warn before quitting if there are changes to the file, of if the current buffer is unsaved and didnt start with a file
+[ ] status bar should tell me when im in VISUAL mode.
+[ ] improve the highlighting for visual mode so it appears on crappy terminals with limited colors
+[ ] pasting a yanked line should create a new line below the cursor, and not interfere with the current position. the current implemnentation will split the line the cursor is one when adding a new line. i dont like that.
+[ ] sometimes I get stuck in INSERT mode and ESCAPE does nothing. What is happening?
