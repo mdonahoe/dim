@@ -2355,6 +2355,48 @@ void handleNormalModeKeypress(int key) {
     }
     break;
   }
+  case 'F':
+  case 'T': {
+    // Backward find: cT{char}, cF{char}, dT{char}, dF{char}
+    if (prev == 'c' || prev == 'd') {
+      int target = editorReadKey();
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        int found = -1;
+        // Search backward from cursor
+        for (int i = E.cx - 1; i >= 0; i--) {
+          if (row->chars[i] == target) {
+            found = i;
+            break;
+          }
+        }
+        if (found >= 0 && found < E.cx) {
+          editorPushUndoState();
+          // For F: delete from found position to cursor (inclusive of found char)
+          // For T: delete from found+1 position to cursor (exclusive of found char)
+          int start = (key == 'F') ? found : found + 1;
+          editorRowDelSpan(row, start, E.cx);
+          E.cx = start;
+          if (prev == 'c') {
+            E.mode = DIM_INSERT_MODE;
+          }
+        }
+      }
+    } else {
+      // Plain F{char} or T{char} - jump backward to character
+      int target = editorReadKey();
+      if (E.cy < E.numrows) {
+        erow *row = &E.row[E.cy];
+        for (int i = E.cx - 1; i >= 0; i--) {
+          if (row->chars[i] == target) {
+            E.cx = (key == 'F') ? i : i + 1;
+            break;
+          }
+        }
+      }
+    }
+    break;
+  }
   default:
     break;
   }
