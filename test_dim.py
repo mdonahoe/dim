@@ -889,5 +889,95 @@ class TestDimFindCharacter(unittest.TestCase):
             "Expected no modification when f finds no match")
 
 
+class TestDimEditCommand(unittest.TestCase):
+    """Tests for :e (edit) command with tab completion."""
+
+    def test_edit_command_tab_completion(self):
+        """Test that :e file<tab> tab-completes filenames."""
+        # Open dim, type :e hell<tab> which should complete to hello_world.txt
+        input_str = "[sleep:50]:e hell[tab][sleep:50][enter][sleep:20][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # After tab completion and opening, should see hello_world.txt in status
+        self.assertIn("hello_world.txt", result.output,
+            "Expected 'hello_world.txt' after tab completion with :e hell<tab>")
+
+    def test_edit_command_opens_file(self):
+        """Test that :e filename opens the specified file."""
+        # Open dim, use :e to open hello_world.txt
+        input_str = "[sleep:50]:e hello_world.txt[enter][sleep:50][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should see file contents and filename in status bar
+        self.assertIn("hello_world.txt", result.output,
+            "Expected 'hello_world.txt' in status bar after :e command")
+        self.assertIn("Hello, World!", result.output,
+            "Expected file content after :e command")
+
+    def test_edit_command_relative_path(self):
+        """Test that :e works with relative paths based on current buffer."""
+        # First open example.py, then use :e to open example.c (same directory)
+        input_str = "[sleep:50]:e example.c[enter][sleep:50][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim", "example.py"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should now show example.c content
+        self.assertIn("example.c", result.output,
+            "Expected 'example.c' in status bar after :e command")
+        self.assertIn("int main", result.output,
+            "Expected C file content after :e command")
+
+    def test_edit_command_shows_completion_options(self):
+        """Test that tab shows multiple options when prefix matches multiple files."""
+        # Type :e example<tab> which matches both example.py and example.c
+        input_str = "[sleep:50]:e example[tab][sleep:50][esc][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        result = run_with_pty(
+            command=["./dim"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Should show both options or complete to common prefix
+        # Either "example." is shown or both files are listed
+        has_completion = (
+            "example.py" in result.output or
+            "example.c" in result.output or
+            "example." in result.output
+        )
+        self.assertTrue(has_completion,
+            "Expected tab completion to show example files")
+
+
 if __name__ == "__main__":
     unittest.main()
