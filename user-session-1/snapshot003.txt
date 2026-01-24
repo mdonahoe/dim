@@ -1,0 +1,48 @@
+/* Test C file for syntax highlighting tests */
+#include <stdio.h>
+#include <stdio.h>
+
+int main(void) {
+    int x = 42;
+    char *message = "Hello from C!";
+
+    if (x > 0) {
+        printf("%s\n", message) this is a test
+;
+        return 0;
+    }
+     1;
+} hello
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+example.c - 15 lines INSERT -- (modified) 0 -- 0                                                                                                        c | 11/15
