@@ -42,6 +42,41 @@ def set_terminal_size(fd, rows, cols):
     fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
 
 
+def is_terminal_response(data, i):
+    """Check if data starting at position i is a terminal response sequence.
+
+    Terminal responses we want to filter out:
+    - Cursor Position Report (CPR): ESC [ Pn ; Pn R  (response to ESC[6n)
+    - Device Attributes (DA): ESC [ ? Pn ; ... c or ESC [ > Pn ; ... c
+
+    Returns the length of the response sequence if found, 0 otherwise.
+    """
+    if i >= len(data) or data[i] != 0x1b:
+        return 0
+
+    if i + 1 >= len(data) or data[i + 1] != ord('['):
+        return 0
+
+    # Look for the end of the CSI sequence
+    j = i + 2
+    while j < len(data):
+        c = data[j]
+        if c == ord('R'):
+            # Cursor Position Report: ESC [ row ; col R
+            return j - i + 1
+        elif c == ord('c'):
+            # Device Attributes response: ESC [ ... c
+            return j - i + 1
+        elif c in b'0123456789;?>' or (c >= ord('0') and c <= ord('9')):
+            # Continue parsing parameters
+            j += 1
+        else:
+            # Unknown sequence, not a terminal response we recognize
+            break
+
+    return 0
+
+
 def byte_to_sequence(b, last_time, current_time, min_sleep_threshold_ms=100):
     """Convert a byte to its testty sequence representation.
 
@@ -195,9 +230,10 @@ def run_with_recording(command, output_dir=".", min_sleep_threshold_ms=100):
         min_sleep_threshold_ms: Minimum pause duration to record as [sleep:N]
 
     Returns:
-        A tuple of (keystroke_sequence, snapshot_files) where keystroke_sequence
-        is the recorded sequence string and snapshot_files is a list of saved
-        snapshot filenames.
+        A tuple of (keystroke_sequence, snapshot_files, rows, cols) where:
+        - keystroke_sequence is the recorded sequence string
+        - snapshot_files is a list of saved snapshot filenames
+        - rows, cols are the terminal dimensions used
     """
     rows, cols = get_terminal_size()
     screen = TerminalScreen(rows, cols)
@@ -305,7 +341,14 @@ def run_with_recording(command, output_dir=".", min_sleep_threshold_ms=100):
                             while i < len(data):
                                 byte = data[i]
 
-                                # Check for escape sequences
+                                # Check for and skip terminal response sequences
+                                # These are sent by the terminal in response to queries (e.g., cursor position)
+                                response_len = is_terminal_response(data, i)
+                                if response_len > 0:
+                                    i += response_len
+                                    continue
+
+                                # Check for escape sequences (user input)
                                 if byte == 0x1b and i + 2 < len(data) and data[i+1] == ord('['):
                                     # CSI sequence
                                     if data[i+2] == ord('A'):
@@ -405,31 +448,42 @@ def run_with_recording(command, output_dir=".", min_sleep_threshold_ms=100):
 
     # Build the final sequence string
     sequence = ''.join(recorded_sequence)
-    return sequence, snapshot_files
+    return sequence, snapshot_files, rows, cols
 
 
 def main():
     if len(sys.argv) < 2:
         print("Usage: python savetty.py <command> [args...]", file=sys.stderr)
         print("\nRecord keystrokes and screen snapshots from a TUI session.", file=sys.stderr)
-        print("Prints the keystroke sequence to stdout when the session ends.", file=sys.stderr)
+        print("Prints the testty command to stdout when the session ends.", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1:]
 
     # Run the recording
-    sequence, snapshot_files = run_with_recording(command)
+    sequence, snapshot_files, rows, cols = run_with_recording(command)
 
-    # Print summary to stderr, sequence to stdout
+    # Build the full testty command
+    cmd_str = ' '.join(command)
+    # Escape single quotes in the sequence for shell safety
+    escaped_sequence = sequence.replace("'", "'\"'\"'")
+
+    testty_cmd = f"python testty.py --run '{cmd_str}' --rows {rows} --cols {cols} --input '{escaped_sequence}'"
+    if snapshot_files:
+        testty_cmd += " --snapshot-dir ."
+
+    # Print summary to stderr, testty command to stdout
     print("\n", file=sys.stderr)
     print("=" * 60, file=sys.stderr)
     print("Recording complete!", file=sys.stderr)
-    print(f"Saved {len(snapshot_files)} snapshot(s):", file=sys.stderr)
-    for f in snapshot_files:
-        print(f"  - {f}", file=sys.stderr)
+    print(f"Terminal size: {rows} rows x {cols} cols", file=sys.stderr)
+    if snapshot_files:
+        print(f"Saved {len(snapshot_files)} snapshot(s):", file=sys.stderr)
+        for f in snapshot_files:
+            print(f"  - {f}", file=sys.stderr)
     print("=" * 60, file=sys.stderr)
-    print("\nRecorded sequence:", file=sys.stderr)
-    print(sequence)
+    print("\nReplay command:", file=sys.stderr)
+    print(testty_cmd)
 
 
 if __name__ == '__main__':

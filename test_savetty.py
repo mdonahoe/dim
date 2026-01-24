@@ -158,6 +158,57 @@ class TestExpectScreenVerification(unittest.TestCase):
         self.assertEqual(result.screen_expectations[1].snapshot_file, "snap2.txt")
 
 
+class TestTerminalResponseFiltering(unittest.TestCase):
+    """Tests for filtering terminal response sequences."""
+
+    def test_filter_cursor_position_report(self):
+        """Test that cursor position reports are filtered."""
+        from savetty import is_terminal_response
+
+        # ESC [ 2 ; 2 R  (cursor at row 2, col 2)
+        data = b'\x1b[2;2R'
+        self.assertEqual(is_terminal_response(data, 0), 6)
+
+    def test_filter_device_attributes_response(self):
+        """Test that device attributes responses are filtered."""
+        from savetty import is_terminal_response
+
+        # ESC [ > 84 ; 0 ; 0 c
+        data = b'\x1b[>84;0;0c'
+        self.assertEqual(is_terminal_response(data, 0), 10)
+
+        # ESC [ ? 1 ; 2 c
+        data = b'\x1b[?1;2c'
+        self.assertEqual(is_terminal_response(data, 0), 7)
+
+    def test_no_filter_arrow_keys(self):
+        """Test that arrow keys are NOT filtered (they're user input)."""
+        from savetty import is_terminal_response
+
+        # ESC [ A (up arrow)
+        data = b'\x1b[A'
+        self.assertEqual(is_terminal_response(data, 0), 0)
+
+        # ESC [ B (down arrow)
+        data = b'\x1b[B'
+        self.assertEqual(is_terminal_response(data, 0), 0)
+
+    def test_no_filter_regular_escape(self):
+        """Test that regular escape is NOT filtered."""
+        from savetty import is_terminal_response
+
+        data = b'\x1b'
+        self.assertEqual(is_terminal_response(data, 0), 0)
+
+    def test_filter_at_offset(self):
+        """Test filtering at a non-zero offset."""
+        from savetty import is_terminal_response
+
+        # b'abc\x1b[5;10Rxyz' - the sequence \x1b[5;10R is 7 bytes
+        data = b'abc\x1b[5;10Rxyz'
+        self.assertEqual(is_terminal_response(data, 3), 7)
+
+
 class TestSavettyByteConversion(unittest.TestCase):
     """Tests for savetty byte-to-sequence conversion."""
 
