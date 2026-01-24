@@ -1,6 +1,3 @@
-[x] capital A should take me to the end of the line and enter insert mode, not the character before the end
-[x] :q should warn before quitting if there are changes to the file, of if the current buffer is unsaved and didnt start with a file
-[x] status bar should tell me when im in VISUAL mode.
-[ ] improve the highlighting for visual mode so it appears on crappy terminals with limited colors
-[x] pasting a yanked line should create a new line below the cursor, and not interfere with the current position. the current implemnentation will split the line the cursor is one when adding a new line. i dont like that.
+[ ] dd on a line should put it in the clipboard. same with dw
 [ ] sometimes I get stuck in INSERT mode and ESCAPE does nothing. What is happening?
+[ ] improve the highlighting for visual mode so it appears on crappy terminals with limited colors.
