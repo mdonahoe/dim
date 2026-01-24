@@ -1154,6 +1154,15 @@ void exMode() {
   }
 
   if (strcmp(query, "q") == 0) {
+    if (E.dirty) {
+      editorSetStatusMessage("No write since last change (add ! to override)");
+      free(query);
+      return;
+    }
+    clearScreen();
+    exit(0);
+  } else if (strcmp(query, "q!") == 0) {
+    // Force quit without saving
     clearScreen();
     exit(0);
   } else if (strcmp(query, "w") == 0) {
@@ -1644,10 +1653,13 @@ void editorDrawRows(struct abuf *ab) {
 void editorDrawStatusBar(struct abuf *ab) {
   abAppend(ab, "\x1b[7m", 4);
   char status[80], rstatus[80];
+  const char *mode_str = "NORMAL";
+  if (E.mode == DIM_INSERT_MODE) mode_str = "INSERT";
+  else if (E.mode == DIM_VISUAL_MODE) mode_str = "VISUAL";
   int len = snprintf(
       status, sizeof(status), "%.20s - %d lines %s -- %s %d -- %d",
       E.filename ? E.filename : "[No Name]", E.numrows,
-      E.mode == DIM_NORMAL_MODE ? "NORMAL" : "INSERT",
+      mode_str,
       E.dirty ? "(modified)" : "", E.v_end.y - E.v_start.y, E.prevNormalKey);
   int rlen =
       snprintf(rstatus, sizeof(status), "%s | %d/%d",
@@ -2044,14 +2056,13 @@ void pasteClipboard() {
   }
 
   if (E.clipboard_is_line) {
-    // Line yank: insert below cursor as a new line
-    editorInsertNewLine();
-    for (int i = 0; i < E.clipboard_len; i++) {
-      if (E.clipboard[i] == '\n') {
-        editorInsertNewLine();
-      } else {
-        editorInsertChar(E.clipboard[i]);
-      }
+    // Line yank: insert below cursor as a new line without splitting current line
+    editorInsertRow(E.cy + 1, E.clipboard, E.clipboard_len);
+    E.cy++;
+    E.cx = 0;
+    E.dirty++;
+    if (E.syntax && E.syntax->ts_language) {
+      editorReparseTreeSitter();
     }
   } else {
     // Word/text yank: insert at cursor position inline
@@ -2194,7 +2205,9 @@ void handleNormalModeKeypress(int key) {
     }
     break;
   case 'A':
-    editorMoveCursor(END_KEY);
+    // Move to end of line (after last char) and enter insert mode
+    if (E.cy < E.numrows)
+      E.cx = E.row[E.cy].size;
     E.mode = DIM_INSERT_MODE;
     break;
   case 'C':
