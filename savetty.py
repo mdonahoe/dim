@@ -221,7 +221,7 @@ def save_snapshot(screen, snapshot_num, output_dir="."):
     return filename
 
 
-def run_with_recording(command, output_dir=".", min_sleep_threshold_ms=100):
+def run_with_recording(command, output_dir=".", min_sleep_threshold_ms=500):
     """Run a command in a PTY, recording keystrokes and screen snapshots.
 
     Args:

@@ -16,6 +16,16 @@ from dataclasses import dataclass
 from typing import Optional
 
 
+class ScreenExpectationError(Exception):
+    """Raised when a screen expectation fails."""
+    def __init__(self, snapshot_file, actual_screen, expected_screen, tmp_path):
+        self.snapshot_file = snapshot_file
+        self.actual_screen = actual_screen
+        self.expected_screen = expected_screen
+        self.tmp_path = tmp_path
+        super().__init__(f"EXPECT_SCREEN failed: {snapshot_file}")
+
+
 @dataclass
 class ScreenExpectation:
     """An expectation for screen content at a specific point in the sequence."""
@@ -389,8 +399,26 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
                         expectation.passed = actual_lines == expected_lines
                     except FileNotFoundError:
                         expectation.passed = False
+                        expected_screen = None
 
                     screen_expectations.append(expectation)
+
+                    # On failure, write actual screen to /tmp and raise exception
+                    if not expectation.passed:
+                        import tempfile
+                        # Write actual screen to temp file
+                        fd, tmp_path = tempfile.mkstemp(prefix='testty_actual_', suffix='.txt', dir='/tmp')
+                        with os.fdopen(fd, 'w') as f:
+                            f.write(actual_screen)
+                            if actual_screen and not actual_screen.endswith('\n'):
+                                f.write('\n')
+
+                        raise ScreenExpectationError(
+                            snapshot_file=snapshot_file,
+                            actual_screen=actual_screen,
+                            expected_screen=expected_screen if 'expected_screen' in dir() else None,
+                            tmp_path=tmp_path
+                        )
                 else:
                     os.write(master_fd, token)
                     time.sleep(delay_ms / 1000.0)
@@ -515,7 +543,14 @@ Special sequences:
         return 1
 
     # Run the command
-    result = run_with_pty(command, input_tokens, args.delay, args.timeout, args.rows, args.cols, args.snapshot_dir)
+    try:
+        result = run_with_pty(command, input_tokens, args.delay, args.timeout, args.rows, args.cols, args.snapshot_dir)
+    except ScreenExpectationError as e:
+        print(f"EXPECT_SCREEN failed: {e.snapshot_file}", file=sys.stderr)
+        print(f"Actual screen written to: {e.tmp_path}", file=sys.stderr)
+        if e.expected_screen is None:
+            print(f"Expected file not found", file=sys.stderr)
+        return 1
 
     # Output results
     if args.output:

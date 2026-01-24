@@ -51,22 +51,32 @@ class TestExpectScreenVerification(unittest.TestCase):
 
     def test_expect_screen_passes_with_matching_content(self):
         """Test that EXPECT_SCREEN passes when screen matches snapshot."""
-        # Create a snapshot file with expected content
-        snapshot_path = os.path.join(self.test_dir, "snapshot001.txt")
-        with open(snapshot_path, 'w') as f:
-            f.write("Hello, World!\n")
-            f.write("This is a test file\n")
-            f.write("Line 3: Testing line display\n")
-            f.write("Line 4: More content\n")
-            f.write("Line 5: Last line")
-
-        # Open hello_world.txt and verify it matches the snapshot
-        input_str = "[sleep:50][EXPECT_SCREEN:snapshot001.txt][ctrl-q]"
+        # First, run dim to capture the actual screen output
+        input_str = "[sleep:50][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
+        # Get the actual screen first
         result = run_with_pty(
             command=["./dim", "hello_world.txt"],
             input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Create a snapshot file with the actual screen content
+        snapshot_path = os.path.join(self.test_dir, "snapshot001.txt")
+        with open(snapshot_path, 'w') as f:
+            f.write(result.output)
+
+        # Now run again with EXPECT_SCREEN - should pass
+        input_str2 = "[sleep:50][EXPECT_SCREEN:snapshot001.txt][ctrl-q]"
+        input_tokens2 = parse_input_string(input_str2)
+
+        result2 = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens2,
             delay_ms=10,
             timeout=0.5,
             rows=24,
@@ -74,15 +84,18 @@ class TestExpectScreenVerification(unittest.TestCase):
             snapshot_dir=self.test_dir
         )
 
-        # Check that we have an expectation result
-        self.assertEqual(len(result.screen_expectations), 1)
-        expectation = result.screen_expectations[0]
+        # Check that we have an expectation result that passed
+        self.assertEqual(len(result2.screen_expectations), 1)
+        expectation = result2.screen_expectations[0]
         self.assertEqual(expectation.snapshot_file, "snapshot001.txt")
-        # The screen should contain the file content (may have more due to status bar)
+        self.assertTrue(expectation.passed)
+        # The screen should contain the file content
         self.assertIn("Hello, World!", expectation.actual_screen)
 
     def test_expect_screen_fails_with_mismatched_content(self):
         """Test that EXPECT_SCREEN fails when screen doesn't match snapshot."""
+        from testty import ScreenExpectationError
+
         # Create a snapshot file with different content
         snapshot_path = os.path.join(self.test_dir, "wrong.txt")
         with open(snapshot_path, 'w') as f:
@@ -92,70 +105,78 @@ class TestExpectScreenVerification(unittest.TestCase):
         input_str = "[sleep:50][EXPECT_SCREEN:wrong.txt][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
-        result = run_with_pty(
-            command=["./dim", "hello_world.txt"],
-            input_tokens=input_tokens,
-            delay_ms=10,
-            timeout=0.5,
-            rows=24,
-            cols=80,
-            snapshot_dir=self.test_dir
-        )
+        # Should raise ScreenExpectationError
+        with self.assertRaises(ScreenExpectationError) as ctx:
+            run_with_pty(
+                command=["./dim", "hello_world.txt"],
+                input_tokens=input_tokens,
+                delay_ms=10,
+                timeout=0.5,
+                rows=24,
+                cols=80,
+                snapshot_dir=self.test_dir
+            )
 
-        # Check that we have an expectation result that failed
-        self.assertEqual(len(result.screen_expectations), 1)
-        expectation = result.screen_expectations[0]
-        self.assertFalse(expectation.passed)
+        # Check exception details
+        self.assertEqual(ctx.exception.snapshot_file, "wrong.txt")
+        self.assertTrue(ctx.exception.tmp_path.startswith("/tmp/testty_actual_"))
+        # Verify the temp file was created
+        self.assertTrue(os.path.exists(ctx.exception.tmp_path))
 
     def test_expect_screen_fails_with_missing_file(self):
         """Test that EXPECT_SCREEN fails when snapshot file doesn't exist."""
+        from testty import ScreenExpectationError
+
         input_str = "[sleep:50][EXPECT_SCREEN:nonexistent.txt][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
-        result = run_with_pty(
-            command=["./dim", "hello_world.txt"],
-            input_tokens=input_tokens,
-            delay_ms=10,
-            timeout=0.5,
-            rows=24,
-            cols=80,
-            snapshot_dir=self.test_dir
-        )
+        # Should raise ScreenExpectationError
+        with self.assertRaises(ScreenExpectationError) as ctx:
+            run_with_pty(
+                command=["./dim", "hello_world.txt"],
+                input_tokens=input_tokens,
+                delay_ms=10,
+                timeout=0.5,
+                rows=24,
+                cols=80,
+                snapshot_dir=self.test_dir
+            )
 
-        # Check that we have an expectation result that failed
-        self.assertEqual(len(result.screen_expectations), 1)
-        expectation = result.screen_expectations[0]
-        self.assertFalse(expectation.passed)
+        # Check exception details
+        self.assertEqual(ctx.exception.snapshot_file, "nonexistent.txt")
+        self.assertIsNone(ctx.exception.expected_screen)
 
-    def test_multiple_expect_screen_tokens(self):
-        """Test multiple EXPECT_SCREEN tokens in one sequence."""
-        # Create two snapshot files
+    def test_multiple_expect_screen_first_fails(self):
+        """Test that multiple EXPECT_SCREEN tokens fail fast on first mismatch."""
+        from testty import ScreenExpectationError
+
+        # Create two snapshot files with wrong content
         snapshot1_path = os.path.join(self.test_dir, "snap1.txt")
         snapshot2_path = os.path.join(self.test_dir, "snap2.txt")
 
         with open(snapshot1_path, 'w') as f:
-            f.write("Content 1")
+            f.write("Wrong content 1")
 
         with open(snapshot2_path, 'w') as f:
-            f.write("Content 2")
+            f.write("Wrong content 2")
 
         input_str = "[sleep:50][EXPECT_SCREEN:snap1.txt]j[sleep:20][EXPECT_SCREEN:snap2.txt][ctrl-q]"
         input_tokens = parse_input_string(input_str)
 
-        result = run_with_pty(
-            command=["./dim", "hello_world.txt"],
-            input_tokens=input_tokens,
-            delay_ms=10,
-            timeout=0.5,
-            rows=24,
-            cols=80,
-            snapshot_dir=self.test_dir
-        )
+        # Should fail on the first EXPECT_SCREEN
+        with self.assertRaises(ScreenExpectationError) as ctx:
+            run_with_pty(
+                command=["./dim", "hello_world.txt"],
+                input_tokens=input_tokens,
+                delay_ms=10,
+                timeout=0.5,
+                rows=24,
+                cols=80,
+                snapshot_dir=self.test_dir
+            )
 
-        # Check that we have two expectation results
-        self.assertEqual(len(result.screen_expectations), 2)
-        self.assertEqual(result.screen_expectations[0].snapshot_file, "snap1.txt")
-        self.assertEqual(result.screen_expectations[1].snapshot_file, "snap2.txt")
+        # Should fail on first snapshot
+        self.assertEqual(ctx.exception.snapshot_file, "snap1.txt")
 
 
 class TestTerminalResponseFiltering(unittest.TestCase):
@@ -275,16 +296,16 @@ class TestSavettyByteConversion(unittest.TestCase):
         """Test that sleep tokens are generated for pauses."""
         from savetty import byte_to_sequence
 
-        # 200ms pause should generate a sleep token
-        parts, is_enter = byte_to_sequence(ord('x'), 0.0, 0.2, min_sleep_threshold_ms=100)
-        self.assertEqual(parts, ['[sleep:200]', 'x'])
+        # 600ms pause should generate a sleep token (default threshold is 500ms)
+        parts, is_enter = byte_to_sequence(ord('x'), 0.0, 0.6, min_sleep_threshold_ms=500)
+        self.assertEqual(parts, ['[sleep:600]', 'x'])
 
     def test_byte_to_sequence_no_sleep_for_short_pause(self):
         """Test that short pauses don't generate sleep tokens."""
         from savetty import byte_to_sequence
 
-        # 50ms pause should not generate a sleep token (below 100ms threshold)
-        parts, is_enter = byte_to_sequence(ord('x'), 0.0, 0.05, min_sleep_threshold_ms=100)
+        # 400ms pause should not generate a sleep token (below 500ms threshold)
+        parts, is_enter = byte_to_sequence(ord('x'), 0.0, 0.4, min_sleep_threshold_ms=500)
         self.assertEqual(parts, ['x'])
 
 
