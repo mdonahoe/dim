@@ -1,0 +1,358 @@
+#!/usr/bin/env python3
+"""
+Unit tests for savetty.py and EXPECT_SCREEN functionality in testty.py
+"""
+
+import os
+import sys
+import unittest
+import tempfile
+import shutil
+
+sys.path.insert(0, os.path.dirname(__file__))
+from testty import run_with_pty, parse_input_string, ScreenExpectation
+
+
+class TestExpectScreenParsing(unittest.TestCase):
+    """Tests for parsing EXPECT_SCREEN tokens."""
+
+    def test_parse_expect_screen_token(self):
+        """Test that [EXPECT_SCREEN:file.txt] is parsed correctly."""
+        tokens = parse_input_string("[EXPECT_SCREEN:snapshot001.txt]")
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0], ('expect_screen', 'snapshot001.txt'))
+
+    def test_parse_expect_screen_with_other_tokens(self):
+        """Test EXPECT_SCREEN mixed with other tokens."""
+        tokens = parse_input_string("hello[enter][EXPECT_SCREEN:test.txt][ctrl-q]")
+        self.assertEqual(len(tokens), 8)  # h, e, l, l, o, enter, expect_screen, ctrl-q
+        # Find the expect_screen token
+        expect_token = [t for t in tokens if isinstance(t, tuple) and t[0] == 'expect_screen']
+        self.assertEqual(len(expect_token), 1)
+        self.assertEqual(expect_token[0][1], 'test.txt')
+
+    def test_parse_expect_screen_case_insensitive(self):
+        """Test that EXPECT_SCREEN parsing is case insensitive."""
+        tokens1 = parse_input_string("[expect_screen:file.txt]")
+        tokens2 = parse_input_string("[EXPECT_SCREEN:file.txt]")
+        self.assertEqual(tokens1, tokens2)
+
+
+class TestExpectScreenVerification(unittest.TestCase):
+    """Tests for EXPECT_SCREEN verification during PTY execution."""
+
+    def setUp(self):
+        """Create a temporary directory for test snapshots."""
+        self.test_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary directory."""
+        shutil.rmtree(self.test_dir)
+
+    def test_expect_screen_passes_with_matching_content(self):
+        """Test that EXPECT_SCREEN passes when screen matches snapshot."""
+        # First, run dim to capture the actual screen output
+        input_str = "[sleep:50][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        # Get the actual screen first
+        result = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80
+        )
+
+        # Create a snapshot file with the actual screen content
+        snapshot_path = os.path.join(self.test_dir, "snapshot001.txt")
+        with open(snapshot_path, 'w') as f:
+            f.write(result.output)
+
+        # Now run again with EXPECT_SCREEN - should pass
+        input_str2 = "[sleep:50][EXPECT_SCREEN:snapshot001.txt][ctrl-q]"
+        input_tokens2 = parse_input_string(input_str2)
+
+        result2 = run_with_pty(
+            command=["./dim", "hello_world.txt"],
+            input_tokens=input_tokens2,
+            delay_ms=10,
+            timeout=0.5,
+            rows=24,
+            cols=80,
+            snapshot_dir=self.test_dir
+        )
+
+        # Check that we have an expectation result that passed
+        self.assertEqual(len(result2.screen_expectations), 1)
+        expectation = result2.screen_expectations[0]
+        self.assertEqual(expectation.snapshot_file, "snapshot001.txt")
+        self.assertTrue(expectation.passed)
+        # The screen should contain the file content
+        self.assertIn("Hello, World!", expectation.actual_screen)
+
+    def test_expect_screen_fails_with_mismatched_content(self):
+        """Test that EXPECT_SCREEN fails when screen doesn't match snapshot."""
+        from testty import ScreenExpectationError
+
+        # Create a snapshot file with different content
+        snapshot_path = os.path.join(self.test_dir, "wrong.txt")
+        with open(snapshot_path, 'w') as f:
+            f.write("This is completely wrong content")
+
+        # Open hello_world.txt but expect different content
+        input_str = "[sleep:50][EXPECT_SCREEN:wrong.txt][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        # Should raise ScreenExpectationError
+        with self.assertRaises(ScreenExpectationError) as ctx:
+            run_with_pty(
+                command=["./dim", "hello_world.txt"],
+                input_tokens=input_tokens,
+                delay_ms=10,
+                timeout=0.5,
+                rows=24,
+                cols=80,
+                snapshot_dir=self.test_dir
+            )
+
+        # Check exception details
+        self.assertEqual(ctx.exception.snapshot_file, "wrong.txt")
+        self.assertTrue(ctx.exception.tmp_path.startswith("/tmp/testty_actual_"))
+        # Verify the temp file was created
+        self.assertTrue(os.path.exists(ctx.exception.tmp_path))
+
+    def test_expect_screen_fails_with_missing_file(self):
+        """Test that EXPECT_SCREEN fails when snapshot file doesn't exist."""
+        from testty import ScreenExpectationError
+
+        input_str = "[sleep:50][EXPECT_SCREEN:nonexistent.txt][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        # Should raise ScreenExpectationError
+        with self.assertRaises(ScreenExpectationError) as ctx:
+            run_with_pty(
+                command=["./dim", "hello_world.txt"],
+                input_tokens=input_tokens,
+                delay_ms=10,
+                timeout=0.5,
+                rows=24,
+                cols=80,
+                snapshot_dir=self.test_dir
+            )
+
+        # Check exception details
+        self.assertEqual(ctx.exception.snapshot_file, "nonexistent.txt")
+        self.assertIsNone(ctx.exception.expected_screen)
+
+    def test_multiple_expect_screen_first_fails(self):
+        """Test that multiple EXPECT_SCREEN tokens fail fast on first mismatch."""
+        from testty import ScreenExpectationError
+
+        # Create two snapshot files with wrong content
+        snapshot1_path = os.path.join(self.test_dir, "snap1.txt")
+        snapshot2_path = os.path.join(self.test_dir, "snap2.txt")
+
+        with open(snapshot1_path, 'w') as f:
+            f.write("Wrong content 1")
+
+        with open(snapshot2_path, 'w') as f:
+            f.write("Wrong content 2")
+
+        input_str = "[sleep:50][EXPECT_SCREEN:snap1.txt]j[sleep:20][EXPECT_SCREEN:snap2.txt][ctrl-q]"
+        input_tokens = parse_input_string(input_str)
+
+        # Should fail on the first EXPECT_SCREEN
+        with self.assertRaises(ScreenExpectationError) as ctx:
+            run_with_pty(
+                command=["./dim", "hello_world.txt"],
+                input_tokens=input_tokens,
+                delay_ms=10,
+                timeout=0.5,
+                rows=24,
+                cols=80,
+                snapshot_dir=self.test_dir
+            )
+
+        # Should fail on first snapshot
+        self.assertEqual(ctx.exception.snapshot_file, "snap1.txt")
+
+
+class TestTerminalResponseFiltering(unittest.TestCase):
+    """Tests for filtering terminal response sequences."""
+
+    def test_filter_cursor_position_report(self):
+        """Test that cursor position reports are filtered."""
+        from savetty import is_terminal_response
+
+        # ESC [ 2 ; 2 R  (cursor at row 2, col 2)
+        data = b'\x1b[2;2R'
+        self.assertEqual(is_terminal_response(data, 0), 6)
+
+    def test_filter_device_attributes_response(self):
+        """Test that device attributes responses are filtered."""
+        from savetty import is_terminal_response
+
+        # ESC [ > 84 ; 0 ; 0 c
+        data = b'\x1b[>84;0;0c'
+        self.assertEqual(is_terminal_response(data, 0), 10)
+
+        # ESC [ ? 1 ; 2 c
+        data = b'\x1b[?1;2c'
+        self.assertEqual(is_terminal_response(data, 0), 7)
+
+    def test_no_filter_arrow_keys(self):
+        """Test that arrow keys are NOT filtered (they're user input)."""
+        from savetty import is_terminal_response
+
+        # ESC [ A (up arrow)
+        data = b'\x1b[A'
+        self.assertEqual(is_terminal_response(data, 0), 0)
+
+        # ESC [ B (down arrow)
+        data = b'\x1b[B'
+        self.assertEqual(is_terminal_response(data, 0), 0)
+
+    def test_no_filter_regular_escape(self):
+        """Test that regular escape is NOT filtered."""
+        from savetty import is_terminal_response
+
+        data = b'\x1b'
+        self.assertEqual(is_terminal_response(data, 0), 0)
+
+    def test_filter_at_offset(self):
+        """Test filtering at a non-zero offset."""
+        from savetty import is_terminal_response
+
+        # b'abc\x1b[5;10Rxyz' - the sequence \x1b[5;10R is 7 bytes
+        data = b'abc\x1b[5;10Rxyz'
+        self.assertEqual(is_terminal_response(data, 3), 7)
+
+
+class TestSavettyByteConversion(unittest.TestCase):
+    """Tests for savetty byte-to-sequence conversion."""
+
+    def test_byte_to_sequence_imports(self):
+        """Test that savetty can be imported."""
+        from savetty import byte_to_sequence
+        self.assertTrue(callable(byte_to_sequence))
+
+    def test_byte_to_sequence_regular_char(self):
+        """Test converting regular ASCII characters."""
+        from savetty import byte_to_sequence
+
+        parts, is_enter = byte_to_sequence(ord('a'), None, 0)
+        self.assertEqual(parts, ['a'])
+        self.assertFalse(is_enter)
+
+    def test_byte_to_sequence_enter(self):
+        """Test converting Enter key."""
+        from savetty import byte_to_sequence
+
+        parts, is_enter = byte_to_sequence(0x0d, None, 0)
+        self.assertEqual(parts, ['[enter]'])
+        self.assertTrue(is_enter)
+
+    def test_byte_to_sequence_escape(self):
+        """Test converting Escape key."""
+        from savetty import byte_to_sequence
+
+        parts, is_enter = byte_to_sequence(0x1b, None, 0)
+        self.assertEqual(parts, ['[esc]'])
+        self.assertFalse(is_enter)
+
+    def test_byte_to_sequence_tab(self):
+        """Test converting Tab key."""
+        from savetty import byte_to_sequence
+
+        parts, is_enter = byte_to_sequence(0x09, None, 0)
+        self.assertEqual(parts, ['[tab]'])
+        self.assertFalse(is_enter)
+
+    def test_byte_to_sequence_backspace(self):
+        """Test converting Backspace key."""
+        from savetty import byte_to_sequence
+
+        parts, is_enter = byte_to_sequence(0x7f, None, 0)
+        self.assertEqual(parts, ['[backspace]'])
+        self.assertFalse(is_enter)
+
+    def test_byte_to_sequence_ctrl_char(self):
+        """Test converting control characters."""
+        from savetty import byte_to_sequence
+
+        # Ctrl-C is byte 0x03
+        parts, is_enter = byte_to_sequence(0x03, None, 0)
+        self.assertEqual(parts, ['[ctrl-c]'])
+        self.assertFalse(is_enter)
+
+        # Ctrl-Q is byte 0x11
+        parts, is_enter = byte_to_sequence(0x11, None, 0)
+        self.assertEqual(parts, ['[ctrl-q]'])
+        self.assertFalse(is_enter)
+
+    def test_byte_to_sequence_with_sleep(self):
+        """Test that sleep tokens are generated for pauses."""
+        from savetty import byte_to_sequence
+
+        # 600ms pause should generate a sleep token (default threshold is 500ms)
+        parts, is_enter = byte_to_sequence(ord('x'), 0.0, 0.6, min_sleep_threshold_ms=500)
+        self.assertEqual(parts, ['[sleep:600]', 'x'])
+
+    def test_byte_to_sequence_no_sleep_for_short_pause(self):
+        """Test that short pauses don't generate sleep tokens."""
+        from savetty import byte_to_sequence
+
+        # 400ms pause should not generate a sleep token (below 500ms threshold)
+        parts, is_enter = byte_to_sequence(ord('x'), 0.0, 0.4, min_sleep_threshold_ms=500)
+        self.assertEqual(parts, ['x'])
+
+
+class TestRoundTrip(unittest.TestCase):
+    """Test that sequences generated by savetty can be parsed by testty."""
+
+    def test_roundtrip_simple_sequence(self):
+        """Test that a simple sequence roundtrips correctly."""
+        # Generate a sequence that savetty might produce
+        sequence = "hello[enter][ctrl-q]"
+
+        # Parse it with testty
+        tokens = parse_input_string(sequence)
+
+        # Verify we get the expected tokens
+        expected = [b'h', b'e', b'l', b'l', b'o', b'\r', b'\x11']
+        self.assertEqual(tokens, expected)
+
+    def test_roundtrip_with_special_keys(self):
+        """Test roundtrip with arrow keys and other special sequences."""
+        sequence = "[up][down][left][right][tab][esc][backspace]"
+
+        tokens = parse_input_string(sequence)
+
+        expected = [
+            b'\x1b[A',  # up
+            b'\x1b[B',  # down
+            b'\x1b[D',  # left
+            b'\x1b[C',  # right
+            b'\t',      # tab
+            b'\x1b',    # esc
+            b'\x7f',    # backspace
+        ]
+        self.assertEqual(tokens, expected)
+
+    def test_roundtrip_with_sleep_and_expect(self):
+        """Test roundtrip with sleep and EXPECT_SCREEN tokens."""
+        sequence = "[sleep:100]hello[EXPECT_SCREEN:snap.txt][ctrl-q]"
+
+        tokens = parse_input_string(sequence)
+
+        # Verify sleep and expect_screen tokens are tuples
+        self.assertEqual(tokens[0], ('sleep', 100))
+        expect_tokens = [t for t in tokens if isinstance(t, tuple) and t[0] == 'expect_screen']
+        self.assertEqual(len(expect_tokens), 1)
+        self.assertEqual(expect_tokens[0], ('expect_screen', 'snap.txt'))
+
+
+if __name__ == "__main__":
+    unittest.main()

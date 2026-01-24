@@ -16,6 +16,24 @@ from dataclasses import dataclass
 from typing import Optional
 
 
+class ScreenExpectationError(Exception):
+    """Raised when a screen expectation fails."""
+    def __init__(self, snapshot_file, actual_screen, expected_screen, tmp_path):
+        self.snapshot_file = snapshot_file
+        self.actual_screen = actual_screen
+        self.expected_screen = expected_screen
+        self.tmp_path = tmp_path
+        super().__init__(f"EXPECT_SCREEN failed: {snapshot_file}")
+
+
+@dataclass
+class ScreenExpectation:
+    """An expectation for screen content at a specific point in the sequence."""
+    snapshot_file: str
+    actual_screen: str = ""
+    passed: bool = False
+
+
 @dataclass
 class Result:
     """Result from running a command in a PTY."""
@@ -23,6 +41,11 @@ class Result:
     raw: bytes
     did_exit: bool
     exit_code: Optional[int]
+    screen_expectations: list = None  # List of ScreenExpectation objects
+
+    def __post_init__(self):
+        if self.screen_expectations is None:
+            self.screen_expectations = []
 
 
 class TerminalScreen:
@@ -244,6 +267,10 @@ def parse_input_string(input_str):
                 # Sleep for specified milliseconds
                 ms = int(special[6:])
                 tokens.append(('sleep', ms))
+            elif special.startswith('expect_screen:'):
+                # Expect screen to match snapshot file
+                snapshot_file = special[14:]  # Remove 'expect_screen:' prefix
+                tokens.append(('expect_screen', snapshot_file))
             else:
                 raise ValueError(f"Unknown special sequence: {special}")
 
@@ -259,7 +286,7 @@ def set_terminal_size(fd, rows=24, cols=80):
     winsize = struct.pack("HHHH", rows, cols, 0, 0)
     fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
 
-def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=80):
+def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=80, snapshot_dir=None):
     """Run a command in a PTY and send input tokens to it.
 
     Args:
@@ -269,9 +296,10 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
         timeout: Timeout in seconds
         rows: Terminal rows
         cols: Terminal columns
+        snapshot_dir: Directory containing snapshot files for EXPECT_SCREEN verification
 
     Returns:
-        Result object with output, raw, did_exit, and exit_code fields
+        Result object with output, raw, did_exit, exit_code, and screen_expectations fields
     """
 
     screen = TerminalScreen(rows, cols)
@@ -279,6 +307,7 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
     process_exited = False
     exit_code = None
     raw_output = b''
+    screen_expectations = []
 
     # Create a pseudo-terminal
     master_fd, slave_fd = pty.openpty()
@@ -341,6 +370,55 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
                         screen.process_output(chunk)
                     except OSError:
                         pass
+                elif isinstance(token, tuple) and token[0] == 'expect_screen':
+                    # Verify screen matches snapshot file
+                    snapshot_file = token[1]
+                    if snapshot_dir:
+                        snapshot_path = os.path.join(snapshot_dir, snapshot_file)
+                    else:
+                        snapshot_path = snapshot_file
+
+                    # Wait a bit for any pending output
+                    time.sleep(0.05)
+                    try:
+                        chunk = os.read(master_fd, 4096)
+                        raw_output += chunk
+                        screen.process_output(chunk)
+                    except OSError:
+                        pass
+
+                    actual_screen = screen.get_screen_text()
+                    expectation = ScreenExpectation(snapshot_file=snapshot_file, actual_screen=actual_screen)
+
+                    try:
+                        with open(snapshot_path, 'r') as f:
+                            expected_screen = f.read().rstrip('\n')
+                        # Compare screens (strip trailing whitespace from lines)
+                        actual_lines = [line.rstrip() for line in actual_screen.split('\n')]
+                        expected_lines = [line.rstrip() for line in expected_screen.split('\n')]
+                        expectation.passed = actual_lines == expected_lines
+                    except FileNotFoundError:
+                        expectation.passed = False
+                        expected_screen = None
+
+                    screen_expectations.append(expectation)
+
+                    # On failure, write actual screen to /tmp and raise exception
+                    if not expectation.passed:
+                        import tempfile
+                        # Write actual screen to temp file
+                        fd, tmp_path = tempfile.mkstemp(prefix='testty_actual_', suffix='.txt', dir='/tmp')
+                        with os.fdopen(fd, 'w') as f:
+                            f.write(actual_screen)
+                            if actual_screen and not actual_screen.endswith('\n'):
+                                f.write('\n')
+
+                        raise ScreenExpectationError(
+                            snapshot_file=snapshot_file,
+                            actual_screen=actual_screen,
+                            expected_screen=expected_screen if 'expected_screen' in dir() else None,
+                            tmp_path=tmp_path
+                        )
                 else:
                     os.write(master_fd, token)
                     time.sleep(delay_ms / 1000.0)
@@ -413,7 +491,8 @@ def run_with_pty(command, input_tokens, delay_ms=10, timeout=5.0, rows=24, cols=
         output=final_screen,
         raw=raw_output,
         did_exit=process_exited,
-        exit_code=exit_code
+        exit_code=exit_code,
+        screen_expectations=screen_expectations
     )
 
 def unused_method():
@@ -438,6 +517,7 @@ Special sequences:
   [backspace]  - Backspace
   [up/down/left/right] - Arrow keys
   [sleep:N]    - Sleep for N milliseconds
+  [EXPECT_SCREEN:file.txt] - Verify screen matches snapshot file
         """
     )
 
@@ -448,6 +528,7 @@ Special sequences:
     parser.add_argument('--timeout', type=float, default=5.0, help='Timeout in seconds (default: 5.0)')
     parser.add_argument('--rows', type=int, default=24, help='Terminal rows (default: 24)')
     parser.add_argument('--cols', type=int, default=80, help='Terminal columns (default: 80)')
+    parser.add_argument('--snapshot-dir', default=None, help='Directory containing snapshot files for EXPECT_SCREEN verification')
 
     args = parser.parse_args()
 
@@ -462,7 +543,14 @@ Special sequences:
         return 1
 
     # Run the command
-    result = run_with_pty(command, input_tokens, args.delay, args.timeout, args.rows, args.cols)
+    try:
+        result = run_with_pty(command, input_tokens, args.delay, args.timeout, args.rows, args.cols, args.snapshot_dir)
+    except ScreenExpectationError as e:
+        print(f"EXPECT_SCREEN failed: {e.snapshot_file}", file=sys.stderr)
+        print(f"Actual screen written to: {e.tmp_path}", file=sys.stderr)
+        if e.expected_screen is None:
+            print(f"Expected file not found", file=sys.stderr)
+        return 1
 
     # Output results
     if args.output:

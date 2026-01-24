@@ -1,3 +1,4 @@
 [ ] dd on a line should put it in the clipboard. same with dw
 [ ] sometimes I get stuck in INSERT mode and ESCAPE does nothing. What is happening?
-[ ] improve the highlighting for visual mode so it appears on crappy terminals with limited colors.
+[ ] improve the highlighting for visual mode so it appears on crappy terminals with limited colors. (write a test first!)
+
