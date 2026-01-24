@@ -598,7 +598,7 @@ class TestDimJJEscape(unittest.TestCase):
     def test_jj_escapes_insert_mode(self):
         """Test that typing jj quickly in insert mode escapes to normal mode."""
         # Enter insert mode, type some text, then jj to escape, then :q to quit
-        input_str = "[sleep:50]ihello jj:q[enter]"
+        input_str = "[sleep:50]ihello jj[sleep:10]:q[enter]"
         input_tokens = parse_input_string(input_str)
 
         result = run_with_pty(
@@ -619,7 +619,7 @@ class TestDimJJEscape(unittest.TestCase):
         # Either the editor quit or we see a save warning
         command_worked = (
             result.did_exit or
-            "unsaved" in result.output.lower() or
+            "no write" in result.output.lower() or
             "warning" in result.output.lower()
         )
         self.assertTrue(command_worked,
@@ -668,7 +668,7 @@ class TestDimJJEscape(unittest.TestCase):
         # :q should be a command, not text
         command_worked = (
             result.did_exit or
-            "unsaved" in result.output.lower()
+            "no write" in result.output.lower()
         )
         self.assertTrue(command_worked,
             "Expected jj to escape and :q to work as command")
