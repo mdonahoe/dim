@@ -46,3 +46,4 @@ int main(void) {
 ~
 ~
 example.c - 13 lines NORMAL -- (modified) 0 -- 0                                                                                                         c | 1/13
+Tree-sitter highlighting enabled for c

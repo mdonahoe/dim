@@ -46,3 +46,4 @@ int main(void) {
 ~
 ~
 example.c - 15 lines INSERT -- (modified) 0 -- 0                                                                                                        c | 11/15
+Yanked line: 18 chars

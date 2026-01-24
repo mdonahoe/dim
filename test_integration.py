@@ -33,17 +33,17 @@ class TestUserSession1(unittest.TestCase):
         """
         session_dir = os.path.join(SCRIPT_DIR, "user-session-1")
 
-        # The recorded input sequence
+        # The recorded input sequence (minimal sleeps only before screen checks)
         input_sequence = (
-            "w[sleep:1435]cw[sleep:1066]Test[sleep:2025][esc][sleep:1022]0[sleep:602]"
-            "[enter][EXPECT_SCREEN:snapshot001.txt][sleep:1231]jyyp[sleep:1935]"
-            "[enter][EXPECT_SCREEN:snapshot002.txt][sleep:668]jj[sleep:1010]$[sleep:734]"
-            "%[sleep:2236]a [sleep:903]a [sleep:608]kjA [sleep:1008]hellojj[sleep:858]"
-            "k[sleep:1581]0w[sleep:720]dw[sleep:2794]cool[sleep:723][backspace][backspace]"
-            "[sleep:813][backspace][sleep:958]jj[sleep:998]kkk[sleep:2101]$[sleep:994]"
-            "a [sleep:3443]a [sleep:623]i [sleep:543]this is a test[sleep:692]"
-            "[enter][EXPECT_SCREEN:snapshot003.txt][sleep:2385][esc][sleep:1115]k[sleep:960]"
-            ":q![sleep:1663][enter]"
+            "wcwTest[esc]0"
+            "[enter][sleep:50][EXPECT_SCREEN:snapshot001.txt]jyyp"
+            "[enter][sleep:50][EXPECT_SCREEN:snapshot002.txt]jj$"
+            "%a a kjA hellojj"
+            "k0wdwcool[backspace][backspace]"
+            "[backspace]jjkkk$"
+            "a a i this is a test"
+            "[enter][sleep:50][EXPECT_SCREEN:snapshot003.txt][esc]k"
+            ":q![enter]"
         )
 
         result = subprocess.run(
