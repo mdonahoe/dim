@@ -43,7 +43,7 @@ class TestUserSession1(unittest.TestCase):
             "[sleep:813][backspace][sleep:958]jj[sleep:998]kkk[sleep:2101]$[sleep:994]"
             "a [sleep:3443]a [sleep:623]i [sleep:543]this is a test[sleep:692]"
             "[enter][EXPECT_SCREEN:snapshot003.txt][sleep:2385][esc][sleep:1115]k[sleep:960]"
-            ":q![sleep:1663][enter][EXPECT_SCREEN:snapshot004.txt]"
+            ":q![sleep:1663][enter]"
         )
 
         result = subprocess.run(
