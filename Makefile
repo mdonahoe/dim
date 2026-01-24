@@ -33,9 +33,10 @@ LDFLAGS_MSAN = $(MSAN)
 
 all: dim color_test
 
-test: dim test_dim.py testty.py
+test: dim test_dim.py testty.py test_integration.py
 	./testty.py --run python3 --input "hello = 1[enter]"
 	python3 test_dim.py
+	python3 test_integration.py
 
 TS_SRC := $(wildcard tree-sitter/lib/src/*.c)
 TS_SRC := $(filter-out tree-sitter/lib/src/lib.c,$(TS_SRC))
