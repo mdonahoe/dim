@@ -1,0 +1,138 @@
+:dim$ rm dim.c
+:dim$ boil --search make test
+=== SEARCH MODE: Finding minimal set of lines ===
+
+=== Phase 1: Discovery (full file restoration) ===
+existing boiling session is stale. Deleting
+Running: make test
+Attempt 1
+
+make: *** No rule to make target 'dim.c', needed by 'dim'.  Stop.
+
+[Pipeline] Attempting repair with new pipeline system...
+=============================================================================
+PIPELINE START
+=============================================================================
+
+--- STAGE 1: DETECTION ---
+
+Detected 1 error clue(s):
+  1. ErrorClue(type=make_missing_target, confidence=1.00, context=map[needed_
+by:dim target:dim.c])
+
+--- FIX ROUND 1: 1 clue(s) remaining ---
+
+--- STAGE 2: PLANNING ---
+
+Generated 1 repair plan(s) (sorted by priority):
+  1. [Priority 0] RepairPlan(type=restore_file, priority=0, action=restore_fu
+ll, target=dim.c)
+      Reason: Restore missing target dim.c
+      Fixes 1 clue(s)
+
+--- STAGE 3: EXECUTION ---
+
+[Pipeline] Plan succeeded! Removing 1 fixed clue(s)
+[Pipeline] 0 clue(s) remaining
+
+Fixed 1 / 1 clue(s)
+=============================================================================
+PIPELINE END
+=============================================================================
+[Pipeline] Success: fixed with pipeline (modified 1 file(s))
+[Pipeline] Debug info saved to .boil/iterations/iter1.pipeline.json
+Running: make test
+
+Discovered 1 file(s) during Phase 1:
+  - dim.c
+
+=== Phase 2: Minimization (trial-and-error function removal) ===
+
+Minimizing dim.c (83 functions):
+  - editorRowCxToRx: REMOVED (tests pass without it, saved 281 bytes)
+  - editorSearchWordUnderCursor: REMOVED (tests pass without it, saved 312 bytes)
+  - editorFreeRows: REMOVED (tests pass without it, saved 235 bytes)
+  - getSearchMatchLength: kept (tests need it: exit status 2)
+  - editorDrawStatusBar: kept (tests need it: exit status 2)
+  - setEndVisualMark: REMOVED (tests pass without it, saved 172 bytes)
+  - handleVisualModeKeypress: REMOVED (tests pass without it, saved 447 bytes)
+  - editorReparseTreeSitter: kept (tests need it: exit status 2)
+  - editorUndo: REMOVED (tests pass without it, saved 449 bytes)
+  - editorSetStatusMessage: kept (tests need it: exit status 2)
+  - editorPromptWithFileCompletion: kept (tests need it: exit status 2)
+  - editorRowAppendString: kept (tests need it: exit status 2)
+  - ts_highlight_node: kept (tests need it: exit status 2)
+  - editorUpdateSyntax: kept (tests need it: exit status 2)
+  - is_word_char: kept (tests need it: exit status 2)
+  - abFree: REMOVED (tests pass without it, saved 57 bytes)
+  - findFileCompletion: kept (tests need it: exit status 2)
+  - editorXChar: kept (tests need it: exit status 2)
+  - editorRowsToString: kept (tests need it: exit status 2)
+  - editorPushUndoState: kept (tests need it: exit status 2)
+  - yankSelection: REMOVED (tests pass without it, saved 1242 bytes)
+  - initEditor: kept (tests need it: exit status 2)
+  - editorSyntaxToColor: kept (tests need it: exit status 2)
+  - clearScreen: kept (tests need it: exit status 2)
+  - editorReparseTreeSitterThrottled: REMOVED (tests pass without it, saved 504 bytes)
+  - editorDelRows: REMOVED (tests pass without it, saved 490 bytes)
+  - editorRowDelChar: kept (tests need it: exit status 2)
+  - exModeCallback: kept (tests need it: exit status 2)
+  - editorGetWordUnderCursor: REMOVED (tests pass without it, saved 668 bytes)
+  - editorRowDelSpan: kept (tests need it: exit status 2)
+  - editorDelToEndOfWord: kept (tests need it: exit status 2)
+  - editorSave: kept (tests need it: exit status 2)
+  - editorScroll: REMOVED (tests pass without it, saved 327 bytes)
+  - editorUpdateRow: kept (tests need it: exit status 2)
+  - startVisualMarks: REMOVED (tests pass without it, saved 93 bytes)
+  - deleteSelection: REMOVED (tests pass without it, saved 61 bytes)
+  - pasteClipboard: kept (tests need it: exit status 2)
+  - getEndOfWord: kept (tests need it: exit status 2)
+  - exMode: kept (tests need it: exit status 2)
+  - editorFind: REMOVED (tests pass without it, saved 495 bytes)
+  - editorMoveCursor: kept (tests need it: exit status 2)
+  - editorReadKey: kept (tests need it: exit status 2)
+  - editorUpdateSyntaxTreeSitter: REMOVED (tests pass without it, saved 771 bytes)
+  - editorOpenFile: kept (tests need it: exit status 2)
+  - handleInsertModeKeypress: kept (tests need it: exit status 2)
+  - main: skipped (main)
+  - die: kept (tests need it: exit status 2)
+  - getCurrentTimeMs: kept (tests need it: exit status 2)
+  - editorRowInsertChar: kept (tests need it: exit status 2)
+  - getStartOfWord: kept (tests need it: exit status 2)
+  - editorOpen: kept (tests need it: exit status 2)
+  - editorCopyRows: REMOVED (tests pass without it, saved 828 bytes)
+  - disableRawMode: REMOVED (tests pass without it, saved 139 bytes)
+  - getCursorPosition: kept (tests need it: exit status 2)
+  - ts_traverse_node: REMOVED (tests pass without it, saved 1221 bytes)
+  - editorMoveWordForward: kept (tests need it: exit status 2)
+  - nextSearch: REMOVED (tests pass without it, saved 802 bytes)
+  - editorRowRxToCx: REMOVED (tests pass without it, saved 634 bytes)
+  - editorDelSpan: REMOVED (tests pass without it, saved 678 bytes)
+  - editorFindCallback: REMOVED (tests pass without it, saved 1002 bytes)
+  - abAppend: kept (tests need it: exit status 2)
+  - isInVisualSelection: kept (tests need it: exit status 2)
+  - handleMovementKey: kept (tests need it: exit status 2)
+  - enableRawMode: kept (tests need it: exit status 2)
+  - getWindowSize: kept (tests need it: exit status 2)
+  - editorSelectSyntaxHighlight: kept (tests need it: exit status 2)
+  - editorInsertRow: kept (tests need it: exit status 2)
+  - editorDelChar: kept (tests need it: exit status 2)
+  - editorClearBuffer: kept (tests need it: exit status 2)
+  - editorRefreshScreen: kept (tests need it: exit status 2)
+  - handleNormalModeKeypress: kept (tests need it: exit status 2)
+  - get_char_class: kept (tests need it: exit status 2)
+  - editorInsertNewLine: kept (tests need it: exit status 2)
+  - editorDrawRows: kept (tests need it: exit status 2)
+  - editorPrompt: kept (tests need it: exit status 2)
+  - editorJumpToMatchingBrace: kept (tests need it: exit status 2)
+  - editorProcessKeypress: kept (tests need it: exit status 2)
+  - is_separator: kept (tests need it: exit status 2)
+  - editorFreeRow: REMOVED (tests pass without it, saved 142 bytes)
+  - editorDelRow: kept (tests need it: exit status 2)
+  - editorInsertChar: kept (tests need it: exit status 2)
+  - editorDelSurroundingWord: REMOVED (tests pass without it, saved 221 bytes
+)
+  - editorDrawMessageBar: kept (tests need it: exit status 2)
+
+=== Search complete: Removed 25 function(s) ===
+success

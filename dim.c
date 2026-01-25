@@ -185,7 +185,7 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int));
 char *editorRowsToString(int *buflen);
 void editorRowDelSpan(erow *row, int start, int end);
 void editorPushUndoState(void);
-void editorUndo(void);
+
 char *findFileCompletion(const char *prefix);
 void editorOpenFile(char *filename);
 char *editorPromptWithFileCompletion(char *prompt);
@@ -209,15 +209,12 @@ void die(const char *s) {
   exit(1);
 }
 
-void disableRawMode(void) {
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1)
-    die("tcsetattr");
-}
+
 
 void enableRawMode(void) {
   if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1)
     die("tcgetattr");
-  atexit(disableRawMode);
+  
   struct termios raw = E.orig_termios;
   raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
   raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
@@ -387,62 +384,9 @@ static void ts_highlight_node(erow *row, TSNode n, int start_col, int end_col) {
   }
 }
 
-static void ts_traverse_node(erow *row, TSNode n) {
-  TSPoint start = ts_node_start_point(n);
-  TSPoint end = ts_node_end_point(n);
 
-  // Check if node intersects with current row
-  if ((start.row <= (uint32_t)row->idx && end.row >= (uint32_t)row->idx)) {
-    int start_col = (start.row == (uint32_t)row->idx) ? (int)start.column : 0;
-    int end_col =
-        (end.row == (uint32_t)row->idx) ? (int)end.column : row->rsize;
 
-    uint32_t child_count = ts_node_child_count(n);
-    if (child_count == 0) {
-      // Leaf node - apply highlighting
-      ts_highlight_node(row, n, start_col, end_col);
-    } else {
-      // Non-leaf - check if it's a named node type we want to highlight
-      if (ts_node_is_named(n)) {
-        const char *type = ts_node_type(n);
-        if (strcmp(type, "comment") == 0 ||
-            strcmp(type, "string_literal") == 0 ||
-            strcmp(type, "string") == 0) {
-          // Highlight the entire node even if it has children
-          ts_highlight_node(row, n, start_col, end_col);
-        }
-      }
 
-      // Recurse into children
-      for (uint32_t i = 0; i < child_count; i++) {
-        TSNode child = ts_node_child(n, i);
-        ts_traverse_node(row, child);
-      }
-    }
-  }
-}
-
-int editorUpdateSyntaxTreeSitter(erow *row) {
-  row->hl = realloc(row->hl, row->rsize);
-  memset(row->hl, HL_NORMAL, row->rsize);
-
-  if (E.syntax == NULL || E.syntax->ts_language == NULL || E.ts_tree == NULL)
-    return -1;
-
-  TSNode root_node = ts_tree_root_node(E.ts_tree);
-
-  // Create a point for the start of this row
-  TSPoint start_point = {.row = row->idx, .column = 0};
-  TSPoint end_point = {.row = row->idx, .column = row->rsize};
-
-  // Find nodes that intersect with this row
-  TSNode node =
-      ts_node_descendant_for_point_range(root_node, start_point, end_point);
-
-  ts_traverse_node(row, node);
-
-  return 0;
-}
 
 int editorUpdateSyntax(erow *row) {
   row->hl = realloc(row->hl, row->rsize);
@@ -589,13 +533,7 @@ int editorSyntaxToColor(int hl) {
   }
 }
 
-void editorReparseTreeSitterThrottled() {
-  time_t now = time(NULL);
-  if (now - E.last_ts_parse >= 1) {
-    editorReparseTreeSitter();
-    E.last_ts_parse = now;
-  }
-}
+
 
 void editorReparseTreeSitter() {
   if (E.syntax == NULL || E.syntax->ts_language == NULL)
@@ -627,7 +565,7 @@ void editorReparseTreeSitter() {
 
   // Re-highlight all rows
   for (int i = 0; i < E.numrows; i++) {
-    editorUpdateSyntaxTreeSitter(&E.row[i]);
+    
   }
 }
 
@@ -674,28 +612,9 @@ void editorSelectSyntaxHighlight() {
 
 /*** row operations ***/
 
-int editorRowCxToRx(erow *row, int cx) {
-  int rx = 0;
-  int j;
-  for (j = 0; j < cx; j++) {
-    if (row->chars[j] == '\t')
-      rx += (DIM_TAB_STOP - 1) - (rx % DIM_TAB_STOP);
-    rx++;
-  }
-  return rx;
-}
 
-int editorRowRxToCx(erow *row, int rx) {
-  int cur_rx = 0;
-  int cx;
-  for (cx = 0; cx < row->size; cx++) {
-    if (row->chars[cx] == '\t')
-      cur_rx += (DIM_TAB_STOP - 1) - (cur_rx % DIM_TAB_STOP);
-    if (cur_rx > rx)
-      return cx;
-  }
-  return cx;
-}
+
+
 
 void editorUpdateRow(erow *row) {
   int tabs = 0;
@@ -721,11 +640,9 @@ void editorUpdateRow(erow *row) {
   row->rsize = idx;
 
   // Use tree-sitter highlighting if available, fall back to regex
-  if (E.syntax && E.syntax->ts_language && E.ts_tree) {
-    editorUpdateSyntaxTreeSitter(row);
-  } else {
+  
     editorUpdateSyntax(row);
-  }
+  
 }
 
 void editorInsertRow(int at, char *s, size_t len) {
@@ -754,16 +671,12 @@ void editorInsertRow(int at, char *s, size_t len) {
   E.dirty++;
 }
 
-void editorFreeRow(erow *row) {
-  free(row->render);
-  free(row->chars);
-  free(row->hl);
-}
+
 
 void editorDelRow(int at) {
   if (at < 0 || at >= E.numrows)
     return;
-  editorFreeRow(&E.row[at]);
+  
   memmove(&E.row[at], &E.row[at + 1], sizeof(erow) * (E.numrows - at - 1));
   for (int j = at; j < E.numrows - 1; j++)
     E.row[j].idx--;
@@ -771,65 +684,9 @@ void editorDelRow(int at) {
   E.dirty++;
 }
 
-void editorDelRows(int start, int end) {
-  int i = start;
-  while (i < end) {
-    editorDelRow(start);
-    i++;
-  }
-}
 
-void editorDelSpan(markpt a, markpt b) {
-  int start_y;
-  int start_x;
-  int end_y;
-  int end_x;
-  if (a.y < b.y) {
-    start_y = a.y;
-    start_x = a.x;
-    end_y = b.y;
-    end_x = b.x;
-  } else if (a.y > b.y) {
-    start_y = b.y;
-    start_x = b.x;
-    end_y = a.y;
-    end_x = a.x;
-  } else {
-    start_y = a.y;
-    end_y = b.y;
-    if (a.x < b.x) {
-      start_x = a.x;
-      end_x = b.x;
-    } else {
-      start_x = b.x;
-      end_x = a.x;
-    }
-  }
-  if (start_y < end_y) {
-    erow *row = &E.row[end_y];
-    if (end_x < row->size - 1) {
-      editorRowDelSpan(row, 0, end_x + 1);
-    } else {
-      editorDelRow(end_y);
-    }
-    editorDelRows(start_y + 1, end_y);
-    row = &E.row[start_y];
-    if (start_x > 0) {
-      editorRowDelSpan(row, start_x, row->size);
-    } else {
-      editorDelRow(start_y);
-    }
-  } else {
-    erow *row = &E.row[start_y];
-    if (start_x == 0 && end_x == row->size - 1) {
-      editorDelRow(end_x);
-    } else {
-      editorRowDelSpan(row, start_x, end_x + 1);
-    }
-  }
-  E.cx = start_x;
-  E.cy = start_y;
-}
+
+
 
 void editorRowInsertChar(erow *row, int at, int c) {
   if (at < 0 || at > row->size)
@@ -840,9 +697,7 @@ void editorRowInsertChar(erow *row, int at, int c) {
   row->chars[at] = c;
   editorUpdateRow(row);
   E.dirty++;
-  if (E.syntax && E.syntax->ts_language) {
-    editorReparseTreeSitterThrottled();
-  }
+  
 }
 
 void editorRowAppendString(erow *row, char *s, size_t len) {
@@ -852,9 +707,7 @@ void editorRowAppendString(erow *row, char *s, size_t len) {
   row->chars[row->size] = '\0';
   editorUpdateRow(row);
   E.dirty++;
-  if (E.syntax && E.syntax->ts_language) {
-    editorReparseTreeSitterThrottled();
-  }
+  
 }
 
 void editorRowDelChar(erow *row, int at) {
@@ -864,9 +717,7 @@ void editorRowDelChar(erow *row, int at) {
   row->size--;
   editorUpdateRow(row);
   E.dirty++;
-  if (E.syntax && E.syntax->ts_language) {
-    editorReparseTreeSitterThrottled();
-  }
+  
 }
 
 void editorRowDelSpan(erow *row, int start, int end) {
@@ -928,13 +779,7 @@ int getEndOfWord(int x, erow *row) {
   return x;
 }
 
-void editorDelSurroundingWord() {
-  erow *row = &E.row[E.cy];
-  int start = getStartOfWord(E.cx, row);
-  int end = getEndOfWord(E.cx, row);
-  editorRowDelSpan(row, start, end);
-  E.cx = start;
-}
+
 
 void editorDelToEndOfWord() {
   erow *row = &E.row[E.cy];
@@ -981,9 +826,7 @@ void editorInsertNewLine(void) {
   }
   E.cy++;
   E.cx = 0;
-  if (E.syntax && E.syntax->ts_language) {
-    editorReparseTreeSitterThrottled();
-  }
+  
 }
 
 void editorXChar(void) {
@@ -1038,7 +881,7 @@ char *editorRowsToString(int *buflen) {
 void editorClearBuffer(void) {
   // Free all rows
   for (int i = 0; i < E.numrows; i++) {
-    editorFreeRow(&E.row[i]);
+    
   }
   free(E.row);
   E.row = NULL;
@@ -1194,183 +1037,19 @@ void exMode() {
 
 static inline int is_word_char(int c) { return isalnum(c) || c == '_'; }
 
-char *editorGetWordUnderCursor(void) {
-  if (E.cy < 0 || E.cy >= E.numrows)
-    return NULL;
 
-  erow *row = &E.row[E.cy];
-  if (row->size == 0)
-    return NULL;
-  if (E.cx < 0 || E.cx >= row->size)
-    return NULL;
 
-  if (!is_word_char(row->chars[E.cx]))
-    return NULL;
 
-  int start = E.cx;
-  int end = E.cx;
 
-  // walk left
-  while (start > 0 && is_word_char(row->chars[start - 1])) {
-    start--;
-  }
 
-  // walk right
-  while (end < row->size && is_word_char(row->chars[end])) {
-    end++;
-  }
 
-  int len = end - start;
-  if (len <= 0)
-    return NULL;
 
-  char *word = malloc(len + 1);
-  memcpy(word, &row->chars[start], len);
-  word[len] = '\0';
-
-  return word;
-}
-
-void nextSearch() {
-  if (E.searchString == NULL) {
-    return;
-  }
-  int current = E.searchIndex;
-  int i;
-  for (i = 0; i < E.numrows; i++) {
-    current += E.searchDirection;
-    if (current == -1)
-      current = E.numrows - 1;
-    else if (current == E.numrows)
-      current = 0;
-
-    erow *row = &E.row[current];
-    char *match = strstr(row->render, E.searchString);
-    if (match) {
-      E.searchIndex = current;
-      E.cy = current;
-      E.cx = editorRowRxToCx(row, match - row->render);
-      E.rowoff = E.numrows; // hack to scroll to line!
-
-      // saved_hl_line = current;
-      // saved_hl = malloc(row->rsize);
-      // memcpy(saved_hl, row->hl, row->rsize);
-      // memset(&row->hl[match - row->render], HL_MATCH, strlen(query));
-      break;
-    }
-  }
-}
-
-void editorSearchWordUnderCursor(void) {
-  char *word = editorGetWordUnderCursor();
-  if (!word)
-    return;
-
-  free(E.searchString);
-  E.searchString = word;
-
-  E.searchIndex = -1;
-  E.searchDirection = 1;
-
-  // optionally jump to next match immediately, like vim
-  nextSearch();
-}
-
-void editorFindCallback(char *query, int key) {
-  static int last_match = -1;
-  static int direction = 1;
-  static int saved_hl_line;
-  static char *saved_hl = NULL;
-
-  if (saved_hl) {
-    memcpy(E.row[saved_hl_line].hl, saved_hl, E.row[saved_hl_line].rsize);
-    free(saved_hl);
-    saved_hl = NULL;
-  }
-  if (key == '\r' || key == '\x1b') {
-    last_match = -1;
-    direction = 1;
-    return;
-  } else if (key == ARROW_RIGHT || key == ARROW_DOWN) {
-    direction = 1;
-  } else if (key == ARROW_LEFT || key == ARROW_UP) {
-    direction = -1;
-  } else {
-    last_match = -1;
-    direction = 1;
-  }
-
-  if (last_match == -1)
-    direction = 1;
-  int current = last_match;
-  int i;
-  for (i = 0; i < E.numrows; i++) {
-    current += direction;
-    if (current == -1)
-      current = E.numrows - 1;
-    else if (current == E.numrows)
-      current = 0;
-
-    erow *row = &E.row[current];
-    char *match = strstr(row->render, query);
-    if (match) {
-      last_match = current;
-      E.cy = current;
-      E.cx = editorRowRxToCx(row, match - row->render);
-      E.rowoff = E.numrows; // hack to scroll to line!
-
-      saved_hl_line = current;
-      saved_hl = malloc(row->rsize);
-      memcpy(saved_hl, row->hl, row->rsize);
-      memset(&row->hl[match - row->render], HL_MATCH, strlen(query));
-      break;
-    }
-  }
-  E.searchIndex = last_match;
-  E.searchDirection = direction;
-}
 
 /*** undo ***/
 
-void editorFreeRows(erow *rows, int numrows) {
-  if (!rows)
-    return;
-  for (int i = 0; i < numrows; i++) {
-    free(rows[i].chars);
-    free(rows[i].render);
-    free(rows[i].hl);
-  }
-  free(rows);
-}
 
-erow *editorCopyRows(int *out_numrows) {
-  if (E.numrows == 0) {
-    *out_numrows = 0;
-    return NULL;
-  }
 
-  erow *copy = malloc(E.numrows * sizeof(erow));
-  for (int i = 0; i < E.numrows; i++) {
-    copy[i].idx = E.row[i].idx;
-    copy[i].size = E.row[i].size;
-    copy[i].rsize = E.row[i].rsize;
-    copy[i].hl_open_comment = E.row[i].hl_open_comment;
 
-    // Copy chars
-    copy[i].chars = malloc(E.row[i].size + 1);
-    memcpy(copy[i].chars, E.row[i].chars, E.row[i].size + 1);
-
-    // Copy render
-    copy[i].render = malloc(E.row[i].rsize + 1);
-    memcpy(copy[i].render, E.row[i].render, E.row[i].rsize + 1);
-
-    // Copy highlight
-    copy[i].hl = malloc(E.row[i].rsize);
-    memcpy(copy[i].hl, E.row[i].hl, E.row[i].rsize);
-  }
-  *out_numrows = E.numrows;
-  return copy;
-}
 
 void editorPushUndoState(void) {
   // Resize stack if needed
@@ -1383,57 +1062,16 @@ void editorPushUndoState(void) {
 
   undoState *state = &E.undo_stack[E.undo_stack_size];
   state->numrows = 0;
-  state->row = editorCopyRows(&state->numrows);
+  
   state->cx = E.cx;
   state->cy = E.cy;
 
   E.undo_stack_size++;
 }
 
-void editorUndo(void) {
-  if (E.undo_stack_size == 0) {
-    editorSetStatusMessage("Nothing to undo");
-    return;
-  }
 
-  E.undo_stack_size--;
-  undoState *state = &E.undo_stack[E.undo_stack_size];
 
-  // Free current state
-  editorFreeRows(E.row, E.numrows);
 
-  // Restore from undo state
-  E.row = state->row;
-  E.numrows = state->numrows;
-  E.cx = state->cx;
-  E.cy = state->cy;
-  E.dirty = 1;
-
-  // Reparse syntax
-  editorReparseTreeSitter();
-}
-
-void editorFind() {
-  int saved_cx = E.cx;
-  int saved_cy = E.cy;
-  int saved_coloff = E.coloff;
-  int saved_rowoff = E.rowoff;
-
-  char *query =
-      editorPrompt("Search: %s (Use ESC/Arrows/Enter)", editorFindCallback);
-  if (query) {
-    if (E.searchString != NULL) {
-      free(E.searchString);
-    }
-    E.searchString = query;
-    // free(query);
-  } else {
-    E.cx = saved_cx;
-    E.cy = saved_cy;
-    E.coloff = saved_coloff;
-    E.rowoff = saved_rowoff;
-  }
-}
 
 /*** append buffer ***/
 
@@ -1451,29 +1089,11 @@ void abAppend(struct abuf *ab, const char *s, int len) {
   ab->len += len;
 }
 
-void abFree(struct abuf *ab) { free(ab->b); }
+
 
 /*** output ***/
 
-void editorScroll(void) {
-  E.rx = 0;
-  if (E.cy < E.numrows) {
-    E.rx = editorRowCxToRx(&E.row[E.cy], E.cx);
-  }
 
-  if (E.cy < E.rowoff) {
-    E.rowoff = E.cy;
-  }
-  if (E.cy >= E.rowoff + E.screenrows) {
-    E.rowoff = E.cy - E.screenrows + 1;
-  }
-  if (E.rx < E.coloff) {
-    E.coloff = E.rx;
-  }
-  if (E.rx > E.coloff + E.screencols) {
-    E.coloff = E.rx - E.screencols + 1;
-  }
-}
 
 int isInVisualSelection(int x, int y) {
   if (E.mode != DIM_VISUAL_MODE)
@@ -1690,7 +1310,7 @@ void editorDrawMessageBar(struct abuf *ab) {
 }
 
 void editorRefreshScreen(void) {
-  editorScroll();
+  
   struct abuf ab = { NULL, 0};
   abAppend(&ab, "\x1b[?25l", 6);
   // abAppend(&ab, "\x1b[2J", 4);
@@ -1705,7 +1325,7 @@ void editorRefreshScreen(void) {
   abAppend(&ab, buf, strlen(buf));
   abAppend(&ab, "\x1b[?25h", 6);
   (void)write(STDOUT_FILENO, ab.b, ab.len);
-  abFree(&ab);
+  
 }
 
 void editorSetStatusMessage(const char *fmt, ...) {
@@ -1985,69 +1605,13 @@ void editorMoveCursor(int key) {
   }
 }
 
-void setEndVisualMark() {
-  E.v_end.x = E.cx;
-  E.v_end.y = E.cy;
-}
 
-void startVisualMarks() {
-  E.v_start.x = E.cx;
-  E.v_start.y = E.cy;
-  setEndVisualMark();
-}
 
-void deleteSelection() { editorDelSpan(E.v_start, E.v_end); }
 
-void yankSelection() {
-  int start_y = E.v_start.y;
-  int end_y = E.v_end.y;
-  int start_x = E.v_start.x;
-  int end_x = E.v_end.x;
 
-  // Normalize so start is before end
-  if (start_y > end_y || (start_y == end_y && start_x > end_x)) {
-    int tmp = start_y;
-    start_y = end_y;
-    end_y = tmp;
-    tmp = start_x;
-    start_x = end_x;
-    end_x = tmp;
-  }
 
-  // Calculate buffer size needed
-  int buflen = 0;
-  for (int y = start_y; y <= end_y; y++) {
-    if (y >= E.numrows)
-      break;
-    int x_start = (y == start_y) ? start_x : 0;
-    int x_end = (y == end_y) ? end_x : E.row[y].size;
-    buflen += (x_end - x_start);
-    if (y < end_y)
-      buflen++; // for newline
-  }
 
-  // Allocate and copy
-  free(E.clipboard);
-  E.clipboard = malloc(buflen + 1);
-  E.clipboard_len = buflen;
 
-  int pos = 0;
-  for (int y = start_y; y <= end_y; y++) {
-    if (y >= E.numrows)
-      break;
-    int x_start = (y == start_y) ? start_x : 0;
-    int x_end = (y == end_y) ? end_x : E.row[y].size;
-    int len = x_end - x_start;
-    memcpy(&E.clipboard[pos], &E.row[y].chars[x_start], len);
-    pos += len;
-    if (y < end_y) {
-      E.clipboard[pos++] = '\n';
-    }
-  }
-  E.clipboard[pos] = '\0';
-
-  editorSetStatusMessage("Yanked %d chars", buflen);
-}
 
 void pasteClipboard() {
   if (!E.clipboard || E.clipboard_len == 0) {
@@ -2113,33 +1677,7 @@ int handleMovementKey(int key, int prev) {
   }
 }
 
-void handleVisualModeKeypress(int key) {
-  int prev = 0; // TODO
-  switch (key) {
-  case 'v':
-    E.mode = DIM_NORMAL_MODE;
-    return;
-  case 'y':
-    yankSelection();
-    E.mode = DIM_NORMAL_MODE;
-    return;
-  case 'x':
-  case 'd':
-    editorPushUndoState();
-    deleteSelection();
-    E.mode = DIM_NORMAL_MODE;
-    break;
-  case '%':
-    editorJumpToMatchingBrace();
-    setEndVisualMark();
-    break;
-  default:
-    if (handleMovementKey(key, prev)) {
-      setEndVisualMark();
-    }
-    break;
-  }
-}
+
 
 void handleNormalModeKeypress(int key) {
   int prev = E.prevNormalKey;
@@ -2252,7 +1790,7 @@ void handleNormalModeKeypress(int key) {
       break;
     case 'i':
       editorPushUndoState();
-      editorDelSurroundingWord();
+      
       E.mode = DIM_INSERT_MODE;
       break;
     case 'd':
@@ -2287,22 +1825,22 @@ void handleNormalModeKeypress(int key) {
     exMode();
     break;
   case '/':
-    editorFind();
+    
     break;
   case 'n':
     E.searchDirection = 1;
-    nextSearch();
+    
     break;
   case 'N':
     E.searchDirection = -1;
-    nextSearch();
+    
     break;
   case '*':
-    editorSearchWordUnderCursor();
+    
     break;
   case 'v':
     E.mode = DIM_VISUAL_MODE;
-    startVisualMarks();
+    
     break;
   case 'y':
     if (prev == 'y') {
@@ -2329,7 +1867,7 @@ void handleNormalModeKeypress(int key) {
     editorJumpToMatchingBrace();
     break;
   case 'u':
-    editorUndo();
+    
     break;
   case 'f':
   case 't': {
@@ -2503,7 +2041,7 @@ void handleInsertModeKeypress(int c) {
     break;
 
   case CTRL_KEY('f'):
-    editorFind();
+    
     break;
 
   case '\t': {
@@ -2547,7 +2085,7 @@ void editorProcessKeypress(void) {
     handleInsertModeKeypress(c);
     break;
   case DIM_VISUAL_MODE:
-    handleVisualModeKeypress(c);
+    
     break;
   default:
     break;
